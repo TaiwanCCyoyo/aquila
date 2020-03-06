@@ -14,7 +14,7 @@ ORIGIN_DEC_LOG=dec_cpu.log
 ORIGIN_VCD=aquila_core.vcd
 SAVE_LOG=1
 # check $1 exists
-if [ -f $1 ]; then
+if [ -f "$1" ]; then
   echo "start $1 testsuite"
 else
   echo "$1 does not exist"
