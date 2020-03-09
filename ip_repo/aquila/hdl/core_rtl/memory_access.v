@@ -54,20 +54,97 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module memory_access#(parameter DATA_WIDTH = 32)
+module memory_access#(DATA_WIDTH = 32)
 (
+    // External Signals
+    input  wire                   clk_i,
+    input  wire                   rst_i,
+    
+    // Singal to avoid repeat requests
+    input  wire                   stall_i,
+
+    // to Pipeline_Control
+    output wire                   stall_for_data_fetch_o,
+
     // from Execute_Memory_Pipeline
     input  [DATA_WIDTH-1 : 0]     unaligned_data,       // from rs2
     input  [1 : 0]                mem_addr_alignment,
     input  [1 : 0]                mem_input_sel,
+    input  wire                    mem_we_i,
+    input  wire                    mem_re_i,
+    input  wire [DATA_WIDTH-1 : 0] mem_addr_i,
 
     // to d-cache
-    output reg [DATA_WIDTH-1 : 0] data_o,           // data_write
-    output reg [3: 0]             byte_write_sel,
+    output reg  [DATA_WIDTH-1 : 0] data_o,           // data_write
+    output reg  [3: 0]             byte_write_sel,
+    output wire [DATA_WIDTH-1 : 0] data_rw_o,
+    output wire [DATA_WIDTH-1 : 0] mem_addr_o,
+    output reg                     data_req_o,
+
+    // from d-cache
+    input  wire                    data_ready_i,
 
     // indicating memory alignment exception
-    output   reg                  memory_alignment_exception
+    output  reg                  memory_alignment_exception
 );
+//=======================================================
+// Parameter and Integer
+//=======================================================
+localparam d_IDLE   = 0,
+           d_WAIT   = 1;
+
+//=======================================================
+// Wire and Reg 
+//======================================================= 
+reg        dS, dS_nxt;
+
+
+//=======================================================
+// User Logic                         
+//=======================================================
+//-----------------------------------------------
+// Data requset Finite State Machine
+//-----------------------------------------------
+always @(posedge clk_i)
+begin
+    if (rst_i)
+        dS <= d_IDLE;
+    else
+        dS <= dS_nxt;
+end
+
+always @(*)
+begin
+    case (dS)
+        d_IDLE:
+            if ((mem_re_i || mem_we_i) && !stall_i)
+                dS_nxt = d_WAIT;
+            else
+                dS_nxt = d_IDLE;
+        d_WAIT:
+            if (data_ready_i)
+                dS_nxt = d_IDLE;
+            else
+                dS_nxt = d_WAIT;
+        default:
+            dS_nxt = d_IDLE;
+    endcase
+end
+
+//-----------------------------------------------
+// Output Signal
+//-----------------------------------------------
+assign stall_for_data_fetch_o = (dS_nxt == d_WAIT);
+assign mem_addr_o             = mem_addr_i;
+assign data_rw_o              = mem_we_i;
+
+always @(*)
+begin
+    if ( (dS == d_IDLE) && (mem_re_i || mem_we_i) && !stall_i)
+        data_req_o = 1;
+    else
+        data_req_o = 0;
+end
 
 // store
 always @(*)

@@ -73,3 +73,6 @@ verilate/ci/*.log
 verilate/ci/*.bak
 verilate/ci/log/
 verilate/ci/log.bak/
+verilate/ci/cpu.log
+verilate/ci/dump.mem
+verilate/ci/aquila_core.vcd

@@ -186,113 +186,11 @@ wire [DATA_WIDTH-1 : 0] cond_branch_target_addr, uncond_branch_target_addr;
 wire irq_taken;
 wire [DATA_WIDTH-1 : 0] PC_handler;
 
-// =============================================================================
-//  Signals from the Memory Alignment Stage
-//
-assign instruction_addr = pc;
-assign data_write = data_o;
-assign data_addr = exe_mem_addr2mem;
-assign data_rw = exe_mem_we;
-assign data_byte_enable = byte_write_sel;
-
-// -----------------------------------------------------------------------------
-// Date:        2018/10/28
-// Engineer:    Jin-you Wu
-// -----------------------------------------------------------------------------
-// Newly added input:
-//      instruction_ready: the instruction from icache is ready
-//      data_ready:        the data from dcache or write data to dcache is ready
-// Newly added output:
-//      instruction_req:   send a request to icache
-//      data_req:          send a request to dcache
-// --------------------------------------------------------------------------
-// Finite State Machine
-localparam i_IDLE   = 0,
-           i_NEXT   = 1,
-           i_WAIT   = 2,
-           i_DONE   = 3;
-localparam d_IDLE   = 0,
-           d_WAIT   = 1;
-reg [ 1: 0] iS, iS_nxt, dS, dS_nxt;
-
-// --------------------------------------------------------------------------
-// stall pipeline register signals
+// stall pipeline signals
 wire stall_for_instr_fetch;
 wire stall_for_data_fetch;
-
-always @(posedge clk)
-begin
-    if (rst)
-        iS <= i_IDLE;
-    else
-        iS <= iS_nxt;
-end
-
-always @(*)
-begin
-    case (iS)
-        i_IDLE:
-            iS_nxt = i_NEXT;
-        i_NEXT:
-            if (stall_from_hazard || stall_for_data_fetch || instruction_ready)
-                iS_nxt = i_NEXT;
-            else
-                iS_nxt = i_WAIT;
-        i_WAIT:
-            if (instruction_ready)
-                iS_nxt = i_NEXT; // one-cycle delay
-            else
-                iS_nxt = i_WAIT;
-        i_DONE:
-            iS_nxt = i_DONE;
-        default:
-            iS_nxt = i_IDLE;
-    endcase
-end
-
-always @(posedge clk)
-begin
-    if (rst)
-        dS <= d_IDLE;
-    else
-        dS <= dS_nxt;
-end
-
-always @(*)
-begin
-    case (dS)
-        d_IDLE:
-            if (exe_mem_re || exe_mem_we)
-                dS_nxt = d_WAIT;
-            else
-                dS_nxt = d_IDLE;
-        d_WAIT:
-            if (data_ready)
-                dS_nxt = d_IDLE;
-            else
-                dS_nxt = d_WAIT;
-        default:
-            dS_nxt = d_IDLE;
-    endcase
-end
-
-assign stall_for_instr_fetch = (!instruction_ready);
-assign stall_for_data_fetch = (dS_nxt == d_WAIT);
-
-// -----------------------------------------------------------------------------
-// Output data request signals
-assign instruction_req = (iS == i_NEXT);
-always @(posedge clk)
-begin
-    if (rst)
-        data_req <= 0;
-    else if ( (dS == d_IDLE) && (exe_mem_re || exe_mem_we) )
-        data_req <= 1;
-    else
-        data_req <= 0;
-end
-
-wire stall_pipeline = stall_for_instr_fetch | stall_for_data_fetch | stall_from_exe;
+wire stall_mem_access;
+wire stall_pipeline;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                        the following are submodules                        //
@@ -325,7 +223,15 @@ pipeline_control Pipeline_Control(
     .flush2dec(flush2dec),
 
     // to Program_Counter, Fetch stage
-    .stall_from_hazard(stall_from_hazard)
+    .stall_from_hazard(stall_from_hazard),
+
+
+    .stall_from_exe_i(stall_from_exe),
+    .stall_for_data_fetch_i(stall_for_data_fetch),
+    .stall_for_instr_fetch_i(stall_for_instr_fetch),
+
+    .stall_pipeline_o(stall_pipeline),
+    .stall_mem_access_o(stall_mem_access)
 );
 
 // =============================================================================
@@ -487,6 +393,13 @@ fetch Fetch(
     // from Pipeline_Control
     .flush(flush2fet || irq_taken),
 
+    // to Pipeline_Control
+    .stall_for_instr_fetch_o(stall_for_instr_fetch),
+
+    // to i-cache
+    .instruction_addr_o(instruction_addr),
+    .instruction_req_o(instruction_req),
+
     // from Cond_Branch_Predictor
     .cond_branch_hit_IF(cond_branch_hit_IF),
     .cond_branch_result_IF(cond_branch_result_IF),
@@ -496,6 +409,7 @@ fetch Fetch(
 
     // from i-cache
     .instruction(instruction),
+    .instruction_valid_i(instruction_ready),
 
     // from Program_Counter
     .pc(pc),
@@ -668,14 +582,33 @@ execute Execute(
 
 // =============================================================================
 memory_access Memory_Access(
+    // External Signals
+    .clk_i(clk),
+    .rst_i(rst),
+    
+    // Singal to avoid repeat requests
+    .stall_i(stall_mem_access),
+
+    // to Pipeline_Control
+    .stall_for_data_fetch_o(stall_for_data_fetch),
+
     // from Execute_Memory_Pipeline
     .unaligned_data(exe_rs2_data2mem),          // store value
     .mem_addr_alignment(exe_mem_addr2mem[1: 0]),
     .mem_input_sel(exe_mem_input_sel2mem),
+    .mem_we_i(exe_mem_we),
+    .mem_re_i(exe_mem_re),
+    .mem_addr_i(exe_mem_addr2mem),
 
     // to d-cache
-    .data_o(data_o),                        // data_write
-    .byte_write_sel(byte_write_sel),
+    .data_o(data_write),                        // data_write
+    .byte_write_sel(data_byte_enable),
+    .data_rw_o(data_rw),
+    .mem_addr_o(data_addr),
+    .data_req_o(data_req),
+
+    // from d-cache
+    .data_ready_i(data_ready),
 
     // Exception signal
     .memory_alignment_exception(memory_alignment_exception)

@@ -75,9 +75,17 @@ module fetch #(parameter DATA_WIDTH = 32)
     
     // from Pipeline_Control
     input                         flush,
+
+    // to Pipeline_Control
+    output wire                    stall_for_instr_fetch_o,
+    
+    // to i-cache
+    output wire [DATA_WIDTH-1 : 0] instruction_addr_o,
+    output wire                    instruction_req_o,
     
     // from i-cache
-    input  [DATA_WIDTH-1 : 0]     instruction,
+    input  wire [DATA_WIDTH-1 : 0] instruction,
+    input  wire                    instruction_valid_i,
     
     // from Program_Counter
     input  [DATA_WIDTH-1 : 0]     pc,
@@ -99,6 +107,49 @@ module fetch #(parameter DATA_WIDTH = 32)
     output reg                    cond_branch_result_ID,
     output reg                    uncond_branch_hit_ID
 );
+
+//=======================================================
+// Parameter and Integer
+//=======================================================
+localparam i_IDLE   = 0,
+           i_NEXT   = 1;
+
+//=======================================================
+// Wire and Reg 
+//=======================================================           
+reg [ 1: 0] iS, iS_nxt;
+
+
+//=======================================================
+// User Logic                         
+//=======================================================
+//-----------------------------------------------
+// Instruction requset Finite State Machine
+//-----------------------------------------------
+always @(posedge clk)
+begin
+    if (rst)
+        iS <= i_IDLE;
+    else
+        iS <= iS_nxt;
+end
+
+always @(*)
+begin
+    case (iS)
+        i_IDLE:
+            iS_nxt = i_NEXT;
+        i_NEXT:
+            iS_nxt = i_NEXT;
+    endcase
+end
+
+//-----------------------------------------------
+// Output Signal
+//-----------------------------------------------
+assign instruction_addr_o = pc;
+assign instruction_req_o = (iS == i_NEXT);
+assign stall_for_instr_fetch_o = (!instruction_valid_i);
 
 always @(posedge clk)
 begin

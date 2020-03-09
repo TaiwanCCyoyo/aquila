@@ -83,7 +83,16 @@ module pipeline_control(
     output       flush2dec,
     
     // that stall Program_Counter and Fetch_Decode_Pipeline  due to load-use data hazard,
-    output       stall_from_hazard
+    output       stall_from_hazard,
+
+
+    // stall pipeline signals
+    input wire stall_from_exe_i,
+    input wire stall_for_data_fetch_i,
+    input wire stall_for_instr_fetch_i,
+
+    output wire stall_pipeline_o,
+    output wire stall_mem_access_o
 );
 
 wire is_rs1_rd_DEC_EXE_same;
@@ -109,5 +118,7 @@ assign branch_flush = branch_taken;
 assign flush2fet = branch_flush | sys_jump;
 assign flush2dec = branch_flush | is_load_use | illegal_instr;
 assign stall_from_hazard = is_load_use;
+assign stall_pipeline_o = stall_for_instr_fetch_i | stall_for_data_fetch_i | stall_from_exe_i;
+assign stall_mem_access_o = stall_for_instr_fetch_i | stall_from_exe_i;
 
 endmodule   // pipeline_control
