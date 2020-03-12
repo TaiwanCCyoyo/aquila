@@ -97,6 +97,7 @@ localparam d_IDLE   = 0,
 // Wire and Reg 
 //======================================================= 
 reg        dS, dS_nxt;
+reg        pipeline_stall;
 
 
 //=======================================================
@@ -117,7 +118,7 @@ always @(*)
 begin
     case (dS)
         d_IDLE:
-            if ((mem_re_i || mem_we_i) && !stall_i)
+            if ((mem_re_i || mem_we_i) && !pipeline_stall)
                 dS_nxt = d_WAIT;
             else
                 dS_nxt = d_IDLE;
@@ -131,6 +132,16 @@ begin
     endcase
 end
 
+always @(posedge clk_i) begin
+    if(rst_i) begin
+        pipeline_stall <= 0;
+    end else if(stall_i) begin
+        pipeline_stall <= 1;
+    end else begin
+        pipeline_stall <= 0;
+    end
+end
+
 //-----------------------------------------------
 // Output Signal
 //-----------------------------------------------
@@ -140,7 +151,7 @@ assign data_rw_o              = mem_we_i;
 
 always @(*)
 begin
-    if ( (dS == d_IDLE) && (mem_re_i || mem_we_i) && !stall_i)
+    if ( (dS == d_IDLE) && (mem_re_i || mem_we_i) && !pipeline_stall)
         data_req_o = 1;
     else
         data_req_o = 0;

@@ -132,7 +132,7 @@ assign mem_sel = (data_addr[31:28] == 'hC)? 1 : (data_addr[31:28] == 'hF)? 2 : 0
 assign data_read_sel = (mem_sel == 1)? M_DEVICE_dev2core_data :
                        (mem_sel == 2)? clint_mem_data : p_d_dout;
 assign data_ready    = (mem_sel == 1)? M_DEVICE_data_ready :
-                       (mem_sel == 0)? p_d_ready : 1; // CLINT-read always ready!
+                       (mem_sel == 0)? p_d_ready : p_d_strobe; // CLINT-read always ready!
 
 // --- Master IP interface driving signals for I/D caches and I/O devices ---
 assign M_ICACHE_strobe  = i_m_strobe;

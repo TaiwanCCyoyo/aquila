@@ -587,7 +587,7 @@ memory_access Memory_Access(
     .rst_i(rst),
     
     // Singal to avoid repeat requests
-    .stall_i(stall_mem_access),
+    .stall_i(stall_pipeline),
 
     // to Pipeline_Control
     .stall_for_data_fetch_o(stall_for_data_fetch),
@@ -633,6 +633,7 @@ writeback Writeback(
     
     // from d-cache
     .mem_data(data_read),
+    .mem_data_vld_i(data_ready),
     
     // to RegisterFile, Forwarding_Unit
     .rd_we_o(rd_we2wb),

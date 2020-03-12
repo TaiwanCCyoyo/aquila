@@ -72,6 +72,7 @@ module writeback#(parameter DATA_WIDTH = 32)
 
     // from Data Memory
     input [DATA_WIDTH-1 : 0]  mem_data,
+    input wire                mem_data_vld_i,
 
     // to RegisterFile
     output                    rd_we_o,
@@ -122,9 +123,7 @@ always @(posedge clk)
 begin
     if (rst)
         mem_data_r <= 32'b0;
-    else if (stall)
-        mem_data_r <= mem_data_r;
-    else
+    else if(mem_data_vld_i)
         mem_data_r <= mem_data;
 end
 
