@@ -111,8 +111,8 @@ module fetch #(parameter DATA_WIDTH = 32)
 //=======================================================
 // Parameter and Integer
 //=======================================================
-localparam i_IDLE   = 0,
-           i_NEXT   = 1;
+localparam i_NEXT   = 0,
+           i_WAIT   = 1;
 
 //=======================================================
 // Wire and Reg 
@@ -129,7 +129,7 @@ reg [ 1: 0] iS, iS_nxt;
 always @(posedge clk)
 begin
     if (rst)
-        iS <= i_IDLE;
+        iS <= i_NEXT;
     else
         iS <= iS_nxt;
 end
@@ -137,10 +137,16 @@ end
 always @(*)
 begin
     case (iS)
-        i_IDLE:
-            iS_nxt = i_NEXT;
         i_NEXT:
-            iS_nxt = i_NEXT;
+            if(instruction_valid_i)
+                iS_nxt = i_NEXT;
+            else
+                iS_nxt = i_WAIT;
+        i_WAIT:
+            if(instruction_valid_i)
+                iS_nxt = i_NEXT;
+            else
+                iS_nxt = i_WAIT;
     endcase
 end
 

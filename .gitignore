@@ -40,11 +40,16 @@ verilate/build.log
 verilate/obj_dir/
 verilate/core_obj_dir/
 verilate/full_obj_dir/
-verilate/ver-test/*.bin
-verilate/ver-test/*.content
-verilate/ver-test/*.objdump
-verilate/ver-test/*.map
-verilate/ver-test/*.ebf
+verilate/ver-test-bug/*.bin
+verilate/ver-test-bug/*.content
+verilate/ver-test-bug/*.objdump
+verilate/ver-test-bug/*.map
+verilate/ver-test-bug/*.ebf
+verilate/*-test/*.bin
+verilate/*-test/*.content
+verilate/*-test/*.objdump
+verilate/*-test/*.map
+verilate/*-test/*.ebf
 
 # sw
 sw/test/*.bin

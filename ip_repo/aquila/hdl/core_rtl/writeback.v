@@ -86,6 +86,7 @@ reg [4: 0]             rd_addr_r;
 reg                    mem_load_ext_sel_r;
 reg [1: 0]             mem_addr_alignment_r;
 reg [DATA_WIDTH-1 : 0] p_data_r;
+reg [DATA_WIDTH-1 : 0] mem_data_r;
 
 always @(posedge clk)
 begin
@@ -97,6 +98,7 @@ begin
         mem_load_ext_sel_r <= 0;
         mem_addr_alignment_r <= 0;
         p_data_r    <= 0;
+        mem_data_r <= 32'b0;
     end
     else if (stall)
     begin
@@ -106,6 +108,7 @@ begin
         mem_load_ext_sel_r <= mem_load_ext_sel_r;
         mem_addr_alignment_r <= mem_addr_alignment_r;
         p_data_r    <= p_data_r;
+        mem_data_r <= mem_data_r;
     end
     else
     begin
@@ -115,17 +118,10 @@ begin
         mem_load_ext_sel_r <= mem_load_ext_sel;
         mem_addr_alignment_r <= mem_addr_alignment;
         p_data_r    <= p_data;
+        mem_data_r <= mem_data;
     end
 end
 
-reg [31: 0] mem_data_r;
-always @(posedge clk)
-begin
-    if (rst)
-        mem_data_r <= 32'b0;
-    else if(mem_data_vld_i)
-        mem_data_r <= mem_data;
-end
 
 reg [31 : 0] aligned_data_o, rd_data;
 always @(*)
