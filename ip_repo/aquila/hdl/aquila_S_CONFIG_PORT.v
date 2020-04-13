@@ -419,8 +419,9 @@ begin
 end
 
 // Add user logic here ////////////////////////////////////////////////////////
-assign RISCV_rst = ( | slv_reg0);
-assign base_addr = slv_reg1;
+//assign RISCV_rst = ( | slv_reg0);
+//assign base_addr = slv_reg1;
+
 // User logic ends  ///////////////////////////////////////////////////////////
 
 endmodule

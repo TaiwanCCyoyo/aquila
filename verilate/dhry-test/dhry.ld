@@ -1,16 +1,15 @@
-`timescale 1ns / 1ps
+/*
 // =============================================================================
-//  Program : boot_rom.v
+//  Program : dhry.ld
 //  Author  : Chun-Jen Tsai
-//  Date    : Sep/1/2019
-// -----------------------------------------------------------------------------
-//  Description:
-//  The boot ROM of the Aquila core. The boot code will load the
-//  application software from either the UART or the FAT32 SD Card.
+//  Date    : Jan/14/2020
 // -----------------------------------------------------------------------------
 //  Revision information:
 //
-//  NONE.
+//  None.
+// -----------------------------------------------------------------------------
+//  Description:
+//  This is the linker script of a program compiled to run from the TCM.
 // -----------------------------------------------------------------------------
 //  License information:
 //
@@ -53,32 +52,31 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
+*/
+__heap_start = 0x0000A000;
+__heap_size  = 0x00005000;
+__stack_top  = 0x0000FFF0;
 
-module boot_rom
-#(parameter DATA_WIDTH = 8, ADDR_WIDTH = 16, ROM_SIZE = 65536)
-(
-    input                         clk,
-    input  [ADDR_WIDTH-1 : 0]     addr,
-    output reg [DATA_WIDTH-1 : 0] data_o
-);
+MEMORY
+{
+    code_ram   (rx!rw) : ORIGIN = 0x00000000, LENGTH = 0x5000
+    data_ram   (rw!x)  : ORIGIN = 0x00006000, LENGTH = 0x4000
+}
 
-// Declareation of the memory cells
-(* rom_style = "block" *) reg [DATA_WIDTH-1 : 0] ROM [ROM_SIZE - 1:0];
+SECTIONS
+{
+    .text :
+    {
+        boot.o(.text)
+        *(.text)
 
-// ------------------------------------
-// SRAM cell initialization
-// ------------------------------------
-// Initialize the sram cells with the values defined in "bootrom.mem."
-initial begin
-  $readmemh("bootrom.mem", ROM);
-end
+    } > code_ram
 
-// ------------------------------------
-// ROM read operation
-// ------------------------------------
-always@(posedge clk)
-begin
-  data_o <= ROM[addr];
-end
+    .data :
+    {
+        *(.data)
+        *(.bss)
+        *(.rodata*)
 
-endmodule
+    } > data_ram
+}

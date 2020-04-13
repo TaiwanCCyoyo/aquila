@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 // =============================================================================
-//  Program : regfile_distributed_ram.v
-//  Author  : Dong-Fong Syu
-//  Date    : Sep/01/2017
+//  Program : sram_dp.v
+//  Author  : Chun-Jen Tsai
+//  Date    : Jan/09/2020
 // -----------------------------------------------------------------------------
 //  Description:
-//  This is the Distributed RAM for Register File of the Aquila core.
+//  This module synthesizes dual-port BRAM for TCM scratchpad.
 // -----------------------------------------------------------------------------
 //  Revision information:
 //
@@ -53,34 +53,91 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module regfile_distributed_ram (
-    input  clk,
-    input  we,
-    input  [31: 0] data_i,
-    input  [ 4: 0] read_addr,
-    input  [ 4: 0] write_addr,
-    output [31: 0] data_o
+module sram_dp
+#(parameter DATA_WIDTH = 32, N_ENTRIES = 1024)
+(
+    input                            clk1_i,
+    input                            en1_i,
+    input                            we1_i,
+    input  [DATA_WIDTH/8-1 : 0]      be1_i,
+    input  [$clog2(N_ENTRIES)-1 : 0] addr1_i,
+    input  [DATA_WIDTH-1 : 0]        data1_i,
+    output reg [DATA_WIDTH-1 : 0]    data1_o,
+    output reg                       ready1_o,
+
+    input                            clk2_i,
+    input                            en2_i,
+    input                            we2_i,
+    input  [DATA_WIDTH/8-1 : 0]      be2_i,
+    input  [$clog2(N_ENTRIES)-1 : 0] addr2_i,
+    input  [DATA_WIDTH-1 : 0]        data2_i,
+    output reg [DATA_WIDTH-1 : 0]    data2_o,
+    output reg                       ready2_o
 );
 
-reg [31: 0] rf [31: 0];
-
-assign data_o = rf[read_addr];
-
-integer i;
+reg [DATA_WIDTH-1 : 0] RAM [N_ENTRIES-1 : 0];
 
 initial
 begin
-    for (i = 0;i < 32;i = i + 1)
-        rf[i] <= 0;
+    $readmemh("/home/twccyoyo/riscv/Daicjou_2/aquila/ip_repo/aquila/hdl/mem/test.mem", RAM);
 end
 
-always @(posedge clk)
+// ------------------------------------
+// Read operation on port #1
+// ------------------------------------
+always@(posedge clk1_i)
 begin
-    if (we)
+    if (en1_i)
     begin
-        rf[write_addr] <= data_i;
+        data1_o <= RAM[addr1_i];
+        ready1_o <= 1;
+    end
+    else
+        ready1_o <= 0;
+end
+
+// ------------------------------------
+// Write operations on port #1
+// ------------------------------------
+integer idx1;
+
+always@(posedge clk1_i)
+begin
+    if (en1_i)
+    begin
+        if (we1_i)
+            for (idx1 = 0; idx1 < DATA_WIDTH/8; idx1 = idx1 + 1)
+                if (be1_i[idx1]) RAM[addr1_i][(idx1<<3) +: 8] <= data1_i[(idx1<<3) +: 8];
     end
 end
 
+// ------------------------------------
+// Read operation on port #2
+// ------------------------------------
+always@(posedge clk2_i)
+begin
+    if (en2_i)
+    begin
+        data2_o <= RAM[addr2_i];
+        ready2_o <= 1;
+    end
+    else
+        ready2_o <= 0;
+end
 
-endmodule // regfile_distributed_ram
+// ------------------------------------
+// Write operations on port #2
+// ------------------------------------
+integer idx2;
+
+always@(posedge clk2_i)
+begin
+    if (en2_i)
+    begin
+        if (we2_i)
+            for (idx2 = 0; idx2 < DATA_WIDTH/8; idx2 = idx2 + 1)
+                if (be2_i[idx2]) RAM[addr2_i][(idx2<<3) +: 8] <= data2_i[(idx2<<3) +: 8];
+    end
+end
+
+endmodule   // sram_dp

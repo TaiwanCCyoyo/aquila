@@ -66,7 +66,7 @@ volatile int got_isr;
 
 void volatile timer_isr()
 {
-    printf("\nISR responded!\n\n");
+    printf("\nTime ISR responded!\n\n");
     got_isr = 1;
 
     asm volatile ("addi t0, zero, 0");
@@ -76,10 +76,45 @@ void volatile timer_isr()
     asm volatile ("mret");
 }
 
+void volatile temp_isr(){
+    printf("\nTemp ISR responded!\n\n");
+    got_isr = 1;
+    asm volatile ("mret");
+}
+
+void volatile user_isr(){
+    printf("\nUser ISR responded!\n\n");
+    got_isr = 1;
+    asm volatile ("mret");
+}
+
+
+// void volatile install_isr(unsigned int isr)
+// {
+//     // the parameter is stored in the a0 register.
+//     asm volatile ("addi t0, a0, 0x0");
+// 	asm volatile ("csrw mtvec, t0");
+// 	printf("Installed ISR at 0x%x\n", isr);
+// }
+
+void volatile check_isr_interruupt()
+{
+    asm volatile ("j user_isr");
+    asm volatile ("j temp_isr");
+    asm volatile ("j temp_isr");
+    asm volatile ("j temp_isr");
+    asm volatile ("j temp_isr");
+    asm volatile ("j temp_isr");
+    asm volatile ("j temp_isr");
+    asm volatile ("j timer_isr");
+}
+
 void volatile install_isr(unsigned int isr)
 {
     // the parameter is stored in the a0 register.
-	asm volatile ("csrw mtvec, a0");
+    asm volatile ("addi t0, a0, 0x0");
+    asm volatile ("addi	t0,t0,0x1");
+	asm volatile ("csrw mtvec, t0");
 	printf("Installed ISR at 0x%x\n", isr);
 }
 
@@ -124,9 +159,9 @@ int main(void)
     printf("\nSecond time tick = %d\n\n", clock());
 
     //timer_isr_test();
-    printf("Waiting for timer ISR ...");
+    printf("Waiting for timer ISR ...\n");
 
-    got_isr = 0;
+    
     while (! got_isr)
     {
         /* busy waiting */
@@ -162,25 +197,30 @@ void malloc_test(int nwords)
 
 void timer_isr_test()
 {
-    char str[10];
+    // char str[10];
     int n;
 
-    printf("Timer ISR test:\n");
+    printf("Timer ISR test:1\n");
+    n = 5;
 
     // Set the ISR address.
-    install_isr((unsigned int) timer_isr);
+    got_isr = 0;
+    install_isr((unsigned int) check_isr_interruupt);
+    printf("install_isr done\n");
 
     // Input the timer interrupt duration.
-    do
-    {
-        printf("Input the interrupt duration (in msec): ");
-        fgets(str, sizeof(str), stdin);
-        n = atoi(str);
-    } while (n == 0);
+    // do
+    // {
+    //     printf("Input the interrupt duration (in msec): ");
+    //     fgets(str, sizeof(str), stdin);
+    //     n = atoi(str);
+    // } while (n == 0);
 
     // Set the interrupt duration.
     set_timer_period(n);
+    printf("set_timer_period done\n");
 
     // Enable the timer interrupts.
     enable_core_timer();
+    printf("enable_core_timer done\n");
 }

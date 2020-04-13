@@ -59,40 +59,31 @@
 
 module pipeline_control(
     // from Decode
-    input [4: 0] rs1_addr,
-    input [4: 0] rs2_addr,
-    input        illegal_instr,
-    
+    input [4: 0] rs1_addr_i,
+    input [4: 0] rs2_addr_i,
+    input        illegal_instr_i,
+
     // from Decode_Execute_Pipeline
-    input [4: 0] rd_addr_DEC_EXE,
-    input        is_load_instr_DEC_EXE,
-    input        cond_branch_hit_EXE,
-    input        uncond_branch_hit_EXE,
+    input [4: 0] rd_addr_DEC_EXE_i,
+    input        is_load_instr_DEC_EXE_i,
+    input        cond_branch_hit_EXE_i,
+    input        uncond_branch_hit_EXE_i,
 
     // from Execution Stage
-    input        branch_taken,
-    input        cond_branch_misprediction,
+    input        branch_taken_i,
+    input        cond_branch_misprediction_i,
 
     // System Jump operation
-    input        sys_jump,
+    input        sys_jump_i,
 
     // that flushes Fetch_Decode_Pipeline
-    output       flush2fet,
+    output       flush2fet_o,
 
     // that flushes Decode_Execute_Pipeline
-    output       flush2dec,
+    output       flush2dec_o,
     
     // that stall Program_Counter and Fetch_Decode_Pipeline  due to load-use data hazard,
-    output       stall_from_hazard,
-
-
-    // stall pipeline signals
-    input wire stall_from_exe_i,
-    input wire stall_for_data_fetch_i,
-    input wire stall_for_instr_fetch_i,
-
-    output wire stall_pipeline_o,
-    output wire stall_mem_access_o
+    output       stall_from_hazard_o
 );
 
 wire is_rs1_rd_DEC_EXE_same;
@@ -100,12 +91,12 @@ wire is_rs2_rd_DEC_EXE_same;
 wire is_load_use;
 wire branch_flush;
 
-assign is_rs1_rd_DEC_EXE_same = (rs1_addr == rd_addr_DEC_EXE);
-assign is_rs2_rd_DEC_EXE_same = (rs2_addr == rd_addr_DEC_EXE);
-assign is_load_use = (is_rs1_rd_DEC_EXE_same | is_rs2_rd_DEC_EXE_same) & is_load_instr_DEC_EXE;
+assign is_rs1_rd_DEC_EXE_same = (rs1_addr_i == rd_addr_DEC_EXE_i);
+assign is_rs2_rd_DEC_EXE_same = (rs2_addr_i == rd_addr_DEC_EXE_i);
+assign is_load_use = (is_rs1_rd_DEC_EXE_same | is_rs2_rd_DEC_EXE_same) & is_load_instr_DEC_EXE_i;
 
 // with branch predictor
-assign branch_flush = (branch_taken & !uncond_branch_hit_EXE & !cond_branch_hit_EXE) | cond_branch_misprediction;
+assign branch_flush = (branch_taken_i & !uncond_branch_hit_EXE_i & !cond_branch_hit_EXE_i) | cond_branch_misprediction_i;
 
 // without branch predictor
 /*
@@ -115,10 +106,8 @@ assign branch_flush = branch_taken;
 // ================================================================================
 //  Output signals
 //
-assign flush2fet = branch_flush | sys_jump;
-assign flush2dec = branch_flush | is_load_use | illegal_instr;
-assign stall_from_hazard = is_load_use;
-assign stall_pipeline_o = stall_for_instr_fetch_i | stall_for_data_fetch_i | stall_from_exe_i;
-assign stall_mem_access_o = stall_for_instr_fetch_i | stall_from_exe_i;
+assign flush2fet_o = branch_flush | sys_jump_i;
+assign flush2dec_o = branch_flush | is_load_use | illegal_instr_i;
+assign stall_from_hazard_o = is_load_use;
 
 endmodule   // pipeline_control

@@ -56,17 +56,18 @@
 module clint
 #( parameter TIMER = 100_000 )
 (
-    input clk,
-    input rst,
+    input clk_i,
+    input rst_i,
     
-    input en,
-    input we,
-    input [31: 0] addr,
-    input [31: 0] data_in,
-    output reg [31: 0] data_out,
- 
-    output tmr_irq,
-    output sft_irq
+    input en_i,
+    input we_i,
+    input [31: 0] addr_i,
+    input [31: 0] data_i,
+    output reg [31: 0] data_o,
+    output reg data_ready_o,
+
+    output tmr_irq_o,
+    output sft_irq_o
 );
 
 reg  [31: 0] clint_mem[0: 4];
@@ -78,9 +79,9 @@ wire [31: 0] msip = clint_mem[4];
 // counter for demo ----
 reg [16: 0] counter;
 
-always@(posedge clk)
+always@(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         counter <= 17'b0;
     end
@@ -92,9 +93,9 @@ end
 
 wire carry = (clint_mem[1] == 32'hFFFF_FFFF);
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         clint_mem[0] <= 32'b0;
         clint_mem[1] <= 32'b0;
@@ -102,9 +103,9 @@ begin
         clint_mem[3] <= 32'b0;
         clint_mem[4] <= 32'b0;
     end
-    else if (we)
+    else if (we_i)
     begin
-        clint_mem[addr] <= data_in;
+        clint_mem[addr_i] <= data_i;
     end
     else
     begin // increase mtime by one per millisecond
@@ -113,13 +114,18 @@ begin
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (en)
-        data_out <= clint_mem[addr];
+    if (en_i)
+    begin
+        data_o <= clint_mem[addr_i];
+        data_ready_o <= 1;   // CJ Tsai 0306_2020: Add ready signal for bus masters.
+    end
+    else
+        data_ready_o <= 0;
 end
 
-assign tmr_irq = (mtime >= mtimecmp);
-assign sft_irq = | msip;
+assign tmr_irq_o = (mtime >= mtimecmp);
+assign sft_irq_o = | msip;
 
 endmodule // clint

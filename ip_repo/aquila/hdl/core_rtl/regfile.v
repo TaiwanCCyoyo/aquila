@@ -53,39 +53,38 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module regfile
-#( parameter stack_pointer_addr = 32'h0000_4000 )
+module regfile #( parameter stack_pointer_addr = 32'h0000_4000, DATA_WIDTH = 32 )
 (
     // System signals
-    input    clk,
-    input    rst,
+    input                       clk_i,
+    input                       rst_i,
     
     // from Decode
-    input    [4: 0]  rs1_addr,
-    input    [4: 0]  rs2_addr,
+    input  [4: 0]               rs1_addr_i,
+    input  [4: 0]               rs2_addr_i,
     
     // from Memory_Write_Back_Pipeline
-    input    regfile_we,
-    input    [4: 0]  rd_addr,
-    input    [31: 0] rd_data,
+    input                       regfile_we_i,
+    input  [4: 0]               rd_addr_i,
+    input  [DATA_WIDTH - 1 : 0] rd_data_i,
     
     // to Decode_Eexcute_Pipeline
-    output   [31: 0] rs1_data_o,
-    output   [31: 0] rs2_data_o
+    output [DATA_WIDTH - 1 : 0] rs1_data_o,
+    output [DATA_WIDTH - 1 : 0] rs2_data_o
 );
 
-wire we = regfile_we & ( | rd_addr); // Because x0 is always 0, can't be written
+wire we = regfile_we_i & ( | rd_addr_i); // Because x0 is always 0, can't be written
 
 // --------------- Use for ASIC ---------------
 reg [31 : 0] rf [0 : 31];
 
-assign rs1_data_o = (we & (rs1_addr == rd_addr)) ? rd_data : rf[rs1_addr];
-assign rs2_data_o = (we & (rs2_addr == rd_addr)) ? rd_data : rf[rs2_addr];
+assign rs1_data_o = (we & (rs1_addr_i == rd_addr_i)) ? rd_data_i : rf[rs1_addr_i];
+assign rs2_data_o = (we & (rs2_addr_i == rd_addr_i)) ? rd_data_i : rf[rs2_addr_i];
 
 integer i;
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         rf[0 ] <= 32'b0;
         rf[1 ] <= stack_pointer_addr;
@@ -124,7 +123,7 @@ begin
     begin
         if (we)
         begin
-            rf[rd_addr] <= rd_data;
+            rf[rd_addr_i] <= rd_data_i;
         end
     end
 end

@@ -64,146 +64,99 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module fetch #(parameter DATA_WIDTH = 32)
+module fetch #( parameter DATA_WIDTH = 32 )
 (
     // External Signals
-    input                         clk,
-    input                         rst,
-    
-    // Singal to stall this Fetch_Decode_Pipeline Register
-    input                         stall,
-    
-    // from Pipeline_Control
-    input                         flush,
+    input                         clk_i,
+    input                         rst_i,
 
-    // to Pipeline_Control
-    output wire                    stall_for_instr_fetch_o,
-    
-    // to i-cache
-    output wire [DATA_WIDTH-1 : 0] instruction_addr_o,
-    output wire                    instruction_req_o,
-    
-    // from i-cache
-    input  wire [DATA_WIDTH-1 : 0] instruction,
-    input  wire                    instruction_valid_i,
-    
+    // Singal to stall this Fetch_Decode_Pipeline Register
+    input                         stall_i,
+
+    // from Pipeline_Control
+    input                         flush_i,
+
+    // from i-memory
+    input  [DATA_WIDTH-1 : 0]     instruction_i,
+
     // from Program_Counter
-    input  [DATA_WIDTH-1 : 0]     pc,
-    
+    input  [DATA_WIDTH-1 : 0]     pc_i,
+
     // from Cond_Branch_Predictor
-    input                         cond_branch_hit_IF,
-    input                         cond_branch_result_IF,
-    
+    input                         cond_branch_hit_IF_i,
+    input                         cond_branch_result_IF_i,
+
     // from Uncond_Branch_BHT
-    input                         uncond_branch_hit_IF,
-    
-    // to Decode Stage
+    input                         uncond_branch_hit_IF_i,
+
+    // to the Decode Stage
     output reg [DATA_WIDTH-1 : 0] instruction_o,
-    
-    // to Decode_Execution_Pipeline Register
+
+    // to the Execute Stage
     output reg [DATA_WIDTH-1 : 0] pc_o,
     output reg                    instr_valid_o,
-    output reg                    cond_branch_hit_ID,
-    output reg                    cond_branch_result_ID,
-    output reg                    uncond_branch_hit_ID
+    output reg                    cond_branch_hit_ID_o,
+    output reg                    cond_branch_result_ID_o,
+    output reg                    uncond_branch_hit_ID_o
 );
 
-//=======================================================
-// Parameter and Integer
-//=======================================================
-localparam i_NEXT   = 0,
-           i_WAIT   = 1;
+reg stall_delay;
+reg flush_delay;
+reg [31: 0] instruction_delay;
 
-//=======================================================
-// Wire and Reg 
-//=======================================================           
-reg [ 1: 0] iS, iS_nxt;
-
-
-//=======================================================
-// User Logic                         
-//=======================================================
-//-----------------------------------------------
-// Instruction requset Finite State Machine
-//-----------------------------------------------
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
-        iS <= i_NEXT;
-    else
-        iS <= iS_nxt;
+    stall_delay <= stall_i;
+    flush_delay <= flush_i;
+    instruction_delay <= stall_delay ? instruction_delay : instruction_i;
 end
 
 always @(*)
 begin
-    case (iS)
-        i_NEXT:
-            if(instruction_valid_i)
-                iS_nxt = i_NEXT;
-            else
-                iS_nxt = i_WAIT;
-        i_WAIT:
-            if(instruction_valid_i)
-                iS_nxt = i_NEXT;
-            else
-                iS_nxt = i_WAIT;
-    endcase
-end
-
-//-----------------------------------------------
-// Output Signal
-//-----------------------------------------------
-assign instruction_addr_o = pc;
-assign instruction_req_o = (iS == i_NEXT);
-assign stall_for_instr_fetch_o = (!instruction_valid_i);
-
-always @(posedge clk)
-begin
-    if (rst)
+    if (rst_i)
         instruction_o <= 32'h00000013;
-    else if (stall)
-        instruction_o <= instruction_o;
-    else if (flush)
+    else if (stall_delay)
+        instruction_o <= instruction_delay;
+    else if (flush_delay)
         instruction_o <= 32'h00000013;
     else
-        instruction_o <= instruction;
+        instruction_o <= instruction_i;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         pc_o <= 32'h00000000;
         instr_valid_o <= 0;
-        cond_branch_hit_ID <= 0;
-        cond_branch_result_ID <= 0;
-        uncond_branch_hit_ID <= 0;
+        cond_branch_hit_ID_o <= 0;
+        cond_branch_result_ID_o <= 0;
+        uncond_branch_hit_ID_o <= 0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
         pc_o <= pc_o;
         instr_valid_o <= instr_valid_o;
-        cond_branch_hit_ID <= cond_branch_hit_ID;
-        cond_branch_result_ID <= cond_branch_result_ID;
-        uncond_branch_hit_ID <= uncond_branch_hit_ID;
+        cond_branch_hit_ID_o <= cond_branch_hit_ID_o;
+        cond_branch_result_ID_o <= cond_branch_result_ID_o;
+        uncond_branch_hit_ID_o <= uncond_branch_hit_ID_o;
     end
-    else if (flush)
+    else if (flush_i)
     begin
-        pc_o <= pc;
+        pc_o <= pc_i;
         instr_valid_o <= 0;
-        cond_branch_hit_ID <= 0;
-        cond_branch_result_ID <= 0;
-        uncond_branch_hit_ID <= 0;
+        cond_branch_hit_ID_o <= 0;
+        cond_branch_result_ID_o <= 0;
+        uncond_branch_hit_ID_o <= 0;
     end
     else
     begin
-        pc_o <= pc;
+        pc_o <= pc_i;
         instr_valid_o <= 1; // default: instruction is valid
-        cond_branch_hit_ID <= cond_branch_hit_IF;
-        cond_branch_result_ID <= cond_branch_result_IF;
-        uncond_branch_hit_ID <= uncond_branch_hit_IF;
+        cond_branch_hit_ID_o <= cond_branch_hit_IF_i;
+        cond_branch_result_ID_o <= cond_branch_result_IF_i;
+        uncond_branch_hit_ID_o <= uncond_branch_hit_IF_i;
     end
 end
 
-endmodule   // fetch
-
+endmodule

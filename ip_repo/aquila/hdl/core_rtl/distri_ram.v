@@ -56,16 +56,16 @@
 module distri_ram
 #(parameter ENTRY_NUM = 24, ADDR_WIDTH = 5, DATA_WIDTH = 32)
 (
-    input  clk,
-    input  we,
-    input  [DATA_WIDTH - 1: 0] branch_target_addr,
-    input  [ADDR_WIDTH - 1: 0] write_addr,
-    input  [ADDR_WIDTH - 1: 0] read_addr,
+    input  clk_i,
+    input  we_i,
+    input  [DATA_WIDTH - 1: 0] branch_target_addr_i,
+    input  [ADDR_WIDTH - 1: 0] write_addr_i,
+    input  [ADDR_WIDTH - 1: 0] read_addr_i,
     output [DATA_WIDTH - 1: 0] data_o
 );
 
 reg [DATA_WIDTH - 1: 0] history_table [ENTRY_NUM - 1: 0];
-assign data_o = history_table[read_addr];
+assign data_o = history_table[read_addr_i];
 
 integer i;
 initial
@@ -74,11 +74,11 @@ begin
         history_table[i] <= 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (we)
+    if (we_i)
     begin
-        history_table[write_addr] <= branch_target_addr;
+        history_table[write_addr_i] <= branch_target_addr_i;
     end
 end
 

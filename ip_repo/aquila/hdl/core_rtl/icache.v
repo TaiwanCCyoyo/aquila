@@ -62,19 +62,19 @@ module icache
 #(parameter ADDR_WIDTH = 32, DATA_WIDTH = 32, CACHE_SIZE = 64, LINE_SIZE = 256)
 (
     /////////// System signals   ////////////////////////////////////////////////////
-    input                         clk, rst,
+    input                         clk_i, rst_i,
 
     /////////// Processor        ////////////////////////////////////////////////////
-    input                         p_strobe,   // processor send a request
-    input  [ADDR_WIDTH-1 : 0]     p_addr,     // InstrMem_addr
+    input                         p_req_i, // processor send a request
+    input  [ADDR_WIDTH-1 : 0]     p_addr_i,   // InstrMem_addr
     output                        p_ready_o,  // the cache instruction is ready
     output [DATA_WIDTH-1 : 0]     p_instr_o,  // InstrMem_data_o
 
     /////////// Memory           ////////////////////////////////////////////////////
     output reg                    m_strobe_o, // cache send a request to memory
     output reg [ADDR_WIDTH-1 : 0] m_addr_o,   // cache send address to memory
-    input                         m_ready,    // the data from memory is ready
-    input  [LINE_SIZE-1: 0]       m_dout      // the data from memory
+    input                         m_ready_i,  // the data from memory is ready
+    input  [LINE_SIZE-1: 0]       m_data_i    // the data from memory
 );
 
 // Parameter        ////////////////////////////////////////////////////////////////
@@ -94,9 +94,9 @@ wire [WORD_BITS-1 : 0] line_offset;
 wire [LINE_BITS-1 : 0] line_index;
 wire [TAG_BITS-1  : 0] tag;
 
-assign line_offset = p_addr[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS];
-assign line_index  = p_addr[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS];
-assign tag         = p_addr[ADDR_WIDTH - 1 : NONTAG_BITS];
+assign line_offset = p_addr_i[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS];
+assign line_index  = p_addr_i[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS];
+assign tag         = p_addr_i[ADDR_WIDTH - 1 : NONTAG_BITS];
 
 //=======================================================
 // 4-way associative cache signals
@@ -132,9 +132,9 @@ localparam
 
 reg [1: 0]  S, S_nxt;
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         S <= Idle;
     else
         S <= S_nxt;
@@ -144,19 +144,19 @@ always @(*)
 begin
     case (S)
         Idle:
-            if (p_strobe)
+            if (p_req_i)
                 S_nxt = Next;
             else
                 S_nxt = Idle;
         Next:
-            /*if(p_stop) S_nxt = Idle;
-            else */
-            if (!cache_hit)
+            // Temporarily fix so that icache works with non-cacheable memory regions.
+            // CY Hsiang 20200220 16:00
+            if (!cache_hit && (p_addr_i[ADDR_WIDTH-1:ADDR_WIDTH-4] >= 4'h8) && (p_addr_i[ADDR_WIDTH-1:ADDR_WIDTH-4] <= 4'hb))
                 S_nxt =  RdfromMem;
             else
                 S_nxt = Next;
         RdfromMem:
-            if (m_ready)
+            if (m_ready_i)
                 S_nxt = RdfromMemFinish;
             else
                 S_nxt = RdfromMem;
@@ -189,7 +189,7 @@ integer idx, jdx;
 
 always @(*)
 begin
-    if (m_ready)
+    if (m_ready_i)
         for (idx = 0; idx < N_WAYS; idx = idx + 1)
             cache_write[idx] = (idx == victim_sel);
     else
@@ -197,36 +197,36 @@ begin
             cache_write[idx] = 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         for (idx = 0; idx < N_WAYS; idx = idx + 1)
             for (jdx = 0; jdx < N_LINES; jdx = jdx + 1)
                 VALID_[jdx][idx] <= 1'b0;
-    else if (S == RdfromMem && m_ready)
+    else if (S == RdfromMem && m_ready_i)
         VALID_[index_prev][victim_sel] <= 1'b1;
 end
 
 /* tag */
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         for (idx = 0; idx < N_WAYS; idx = idx + 1)
             for (jdx = 0; jdx < N_LINES; jdx = jdx + 1)
                 TAG_[jdx][idx] <= 0;
-    else if (S == RdfromMem && m_ready)
+    else if (S == RdfromMem && m_ready_i)
         TAG_[index_prev][victim_sel] <= tag;
 end
 
 // assign victim_sel = FIFO_cnt[line_index];
-always @(posedge clk)
+always @(posedge clk_i)
 begin
     victim_sel <= FIFO_cnt[line_index];
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         for (idx = 0; idx < N_LINES; idx = idx + 1)
             FIFO_cnt[idx] <= 0;
     else if (S == RdfromMemFinish)
@@ -236,7 +236,7 @@ end
 /* block ram delay debug!!!! */
 assign is_diff_index = (index_prev != line_index);
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
     index_prev <= line_index;
 end
@@ -263,37 +263,37 @@ end
 always @(*)
 begin
     case (line_offset)
-        3'b111: fromMem = m_dout[ 31: 0];        // [255:224]
-        3'b110: fromMem = m_dout[ 63: 32];       // [223:192]
-        3'b101: fromMem = m_dout[ 95: 64];       // [191:160]
-        3'b100: fromMem = m_dout[127: 96];       // [159:128]
-        3'b011: fromMem = m_dout[159: 128];      // [127: 96]
-        3'b010: fromMem = m_dout[191: 160];      // [ 95: 64]
-        3'b001: fromMem = m_dout[223: 192];      // [ 63: 32]
-        3'b000: fromMem = m_dout[255: 224];      // [ 31:  0]
+        3'b111: fromMem = m_data_i[ 31: 0];        // [255:224]
+        3'b110: fromMem = m_data_i[ 63: 32];       // [223:192]
+        3'b101: fromMem = m_data_i[ 95: 64];       // [191:160]
+        3'b100: fromMem = m_data_i[127: 96];       // [159:128]
+        3'b011: fromMem = m_data_i[159: 128];      // [127: 96]
+        3'b010: fromMem = m_data_i[191: 160];      // [ 95: 64]
+        3'b001: fromMem = m_data_i[223: 192];      // [ 63: 32]
+        3'b000: fromMem = m_data_i[255: 224];      // [ 31:  0]
     endcase
 end
 
 // Output signals   /////////////////////////////////////////////////////////////
-assign p_instr_o = ((S == Next) && cache_hit) ? fromCache : (m_ready) ? fromMem : 0;
-assign p_ready_o = ( ( (S == Next) && cache_hit && !is_diff_index ) || m_ready ) ? 1 : 0;
+assign p_instr_o = ((S == Next) && cache_hit) ? fromCache : (m_ready_i) ? fromMem : 0;
+assign p_ready_o = ( ( (S == Next) && cache_hit && !is_diff_index ) || m_ready_i ) ? 1 : 0;
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         m_strobe_o <= 0;
-    else if (S == RdfromMem && !m_ready)
+    else if (S == RdfromMem && !m_ready_i)
         m_strobe_o <= 1;
     else
         m_strobe_o <= 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         m_addr_o <= 0;
     else if (S == RdfromMem)
-        m_addr_o <= {p_addr[ADDR_WIDTH-1 : 5], 3'b0, 2'b0}; // read 8 words
+        m_addr_o <= {p_addr_i[ADDR_WIDTH-1 : 5], 3'b0, 2'b0}; // read 8 words
     else
         m_addr_o <= 0;
 end
@@ -309,11 +309,11 @@ generate
     begin
         sram #( .DATA_WIDTH(WORDS_PER_LINE * 32), .N_ENTRIES(N_LINES) )
              DATA_BRAM(
-                 .clk(clk),
-                 .en(1'b1),
-                 .we(cache_write[i]),
-                 .addr(line_index),
-                 .data_i(m_dout),   // Instructions are read-only.
+                 .clk_i(clk_i),
+                 .en_i(1'b1),
+                 .we_i(cache_write[i]),
+                 .addr_i(line_index),
+                 .data_i(m_data_i),   // Instructions are read-only.
                  .data_o(c_instr_o[i])
              );
     end

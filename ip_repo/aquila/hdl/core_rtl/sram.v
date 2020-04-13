@@ -54,12 +54,12 @@
 // =============================================================================
 
 module sram
-#(parameter N_ENTRIES = 1024, DATA_WIDTH = 256)
+#(parameter DATA_WIDTH = 32, N_ENTRIES = 1024)
 (
-    input                           clk,
-    input                           en,
-    input                           we,
-    input  [$clog2(N_ENTRIES)-1: 0] addr,
+    input                           clk_i,
+    input                           en_i,
+    input                           we_i,
+    input  [$clog2(N_ENTRIES)-1: 0] addr_i,
     input  [DATA_WIDTH-1: 0]        data_i,
     output reg [DATA_WIDTH-1: 0]    data_o
 );
@@ -69,22 +69,22 @@ reg [DATA_WIDTH-1 : 0] RAM [N_ENTRIES-1: 0];
 // ------------------------------------
 // Read operation
 // ------------------------------------
-always@(posedge clk)
+always@(posedge clk_i)
 begin
-    if (en)
+    if (en_i)
     begin
-        data_o <= RAM[addr];
+        data_o <= RAM[addr_i];
     end
 end
 
 // ------------------------------------
 // Write operation
 // ------------------------------------
-always@(posedge clk)
+always@(posedge clk_i)
 begin
-    if (en & we)
+    if (en_i & we_i)
     begin
-        RAM[addr] <= data_i;
+        RAM[addr_i] <= data_i;
     end
 end
 

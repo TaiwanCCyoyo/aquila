@@ -56,10 +56,6 @@
 
 module aquila #
 (
-    // Parameters of Axi Slave Bus Interface S_CONFIG_PORT
-    parameter integer C_S_CONFIG_PORT_DATA_WIDTH    = 32,
-    parameter integer C_S_CONFIG_PORT_ADDR_WIDTH    = 5,
-
     // Parameters of Axi Master Bus Interface M_ICACHE_PORT
     parameter integer C_M_ICACHE_PORT_ID_WIDTH		= 1,
     parameter integer C_M_ICACHE_PORT_ADDR_WIDTH	= 32,
@@ -85,29 +81,6 @@ module aquila #
     parameter integer C_M_DEVICE_PORT_DATA_WIDTH    = 32
 )
 (
-    // Ports of Axi Slave Bus Interface S_CONFIG_PORT
-    input wire cfg_dev_aclk,
-    input wire cfg_dev_aresetn,
-    input wire [C_S_CONFIG_PORT_ADDR_WIDTH - 1 : 0] s_config_port_awaddr,
-    input wire [2 : 0] s_config_port_awprot,
-    input wire s_config_port_awvalid,
-    output wire s_config_port_awready,
-    input wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] s_config_port_wdata,
-    input wire [(C_S_CONFIG_PORT_DATA_WIDTH / 8) - 1 : 0] s_config_port_wstrb,
-    input wire s_config_port_wvalid,
-    output wire s_config_port_wready,
-    output wire [1 : 0] s_config_port_bresp,
-    output wire s_config_port_bvalid,
-    input wire s_config_port_bready,
-    input wire [C_S_CONFIG_PORT_ADDR_WIDTH - 1 : 0] s_config_port_araddr,
-    input wire [2 : 0] s_config_port_arprot,
-    input wire s_config_port_arvalid,
-    output wire s_config_port_arready,
-    output wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] s_config_port_rdata,
-    output wire [1 : 0] s_config_port_rresp,
-    output wire s_config_port_rvalid,
-    input wire s_config_port_rready,
-
     // Ports of Axi Master Bus Interface M_ICACHE_PORT
     input wire cache_aclk,
     input wire cache_aresetn,
@@ -199,6 +172,8 @@ module aquila #
     output wire m_dcache_port_rready,
 
     // Ports of Axi Master Bus Interface M_DEVICE_PORT
+    input wire device_aclk,
+    input wire device_aresetn,
     output wire [C_M_DEVICE_PORT_ADDR_WIDTH-1 : 0] m_device_port_awaddr,
     output wire [2 : 0] m_device_port_awprot,
     output wire  m_device_port_awvalid,
@@ -222,52 +197,34 @@ module aquila #
 
 // Declaration of local signals.
 wire                                      RISCV_rst;
-wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] main_memory_addr;
-
 wire                                      M_ICACHE_strobe, M_ICACHE_done;
 wire                                      M_DCACHE_strobe, M_DCACHE_done;
 wire                                      M_DCACHE_rw;
-wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] M_ICACHE_addr, M_DCACHE_addr;
+wire [C_M_ICACHE_PORT_DATA_WIDTH - 1 : 0] M_ICACHE_addr;
+wire [C_M_DCACHE_PORT_DATA_WIDTH - 1 : 0] M_DCACHE_addr;
 wire [255 : 0] M_ICACHE_datain, M_DCACHE_datain, M_DCACHE_dataout;
 
 wire                                      M_DEVICE_strobe;
-wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] M_DEVICE_addr;
+wire [C_M_DEVICE_PORT_DATA_WIDTH - 1 : 0] M_DEVICE_addr;
 wire                                      M_DEVICE_rw;
-wire [C_S_CONFIG_PORT_DATA_WIDTH/8-1 : 0] M_DEVICE_byte_enable;
-wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] M_DEVICE_core2dev_data;
+wire [C_M_DEVICE_PORT_DATA_WIDTH/8-1 : 0] M_DEVICE_byte_enable;
+wire [C_M_DEVICE_PORT_DATA_WIDTH - 1 : 0] M_DEVICE_core2dev_data;
 wire                                      M_DEVICE_data_ready;
-wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] M_DEVICE_dev2core_data;
+wire [C_M_DEVICE_PORT_DATA_WIDTH - 1 : 0] M_DEVICE_dev2core_data;
 
-// Instantiation of the Axi Bus Interface S_CONFIG_PORT
-aquila_S_CONFIG_PORT # (
-    .C_S_AXI_DATA_WIDTH(C_S_CONFIG_PORT_DATA_WIDTH),
-    .C_S_AXI_ADDR_WIDTH(C_S_CONFIG_PORT_ADDR_WIDTH)
-) aquila_S_CONFIG_PORT_inst (
-    .RISCV_rst(RISCV_rst),
-    .base_addr(main_memory_addr),
+// Deplay the CPU reset signal for a few seconds, in case
+// you want to use ILA to capture the signals.
+reg [32:0] rst_counter;
 
-    .S_AXI_ACLK(cfg_dev_aclk),
-    .S_AXI_ARESETN(cfg_dev_aresetn),
-    .S_AXI_AWADDR(s_config_port_awaddr),
-    .S_AXI_AWPROT(s_config_port_awprot),
-    .S_AXI_AWVALID(s_config_port_awvalid),
-    .S_AXI_AWREADY(s_config_port_awready),
-    .S_AXI_WDATA(s_config_port_wdata),
-    .S_AXI_WSTRB(s_config_port_wstrb),
-    .S_AXI_WVALID(s_config_port_wvalid),
-    .S_AXI_WREADY(s_config_port_wready),
-    .S_AXI_BRESP(s_config_port_bresp),
-    .S_AXI_BVALID(s_config_port_bvalid),
-    .S_AXI_BREADY(s_config_port_bready),
-    .S_AXI_ARADDR(s_config_port_araddr),
-    .S_AXI_ARPROT(s_config_port_arprot),
-    .S_AXI_ARVALID(s_config_port_arvalid),
-    .S_AXI_ARREADY(s_config_port_arready),
-    .S_AXI_RDATA(s_config_port_rdata),
-    .S_AXI_RRESP(s_config_port_rresp),
-    .S_AXI_RVALID(s_config_port_rvalid),
-    .S_AXI_RREADY(s_config_port_rready)
-);
+always @(posedge device_aclk)
+begin
+    if ( device_aresetn == 1'b0 )
+        rst_counter <= 33'd1000_000; // Set 10-msec delay.
+    else
+        rst_counter <= rst_counter - (| rst_counter);
+end
+
+assign RISCV_rst = (| rst_counter);
 
 // Instantiation of the Axi Bus Interface M_ICACHE_PORT
 aquila_M_ICACHE_PORT # (
@@ -410,8 +367,8 @@ aquila_M_DEVICE_PORT # (
     .M_DEVICE_data_ready(M_DEVICE_data_ready),
     .M_DEVICE_dev2core_data(M_DEVICE_dev2core_data),
 
-    .M_AXI_ACLK(cfg_dev_aclk),
-    .M_AXI_ARESETN(cfg_dev_aresetn),
+    .M_AXI_ACLK(device_aclk),
+    .M_AXI_ARESETN(device_aresetn),
     .M_AXI_AWADDR(m_device_port_awaddr),
     .M_AXI_AWPROT(m_device_port_awprot),
     .M_AXI_AWVALID(m_device_port_awvalid),
@@ -435,29 +392,29 @@ aquila_M_DEVICE_PORT # (
 
 // Instiantiation of the top-level Aquila core module.
 aquila_top aquila_core(
-    .clk(cfg_dev_aclk),
-    .rst(RISCV_rst),
-    .base_addr(main_memory_addr),
+    .clk_i(device_aclk),
+    .rst_i(RISCV_rst),
+    .base_addr_i(32'b0),
 
-    .M_ICACHE_strobe(M_ICACHE_strobe),
-    .M_ICACHE_addr(M_ICACHE_addr),
-    .M_ICACHE_done(M_ICACHE_done),
-    .M_ICACHE_datain(M_ICACHE_datain),
+    .M_ICACHE_strobe_o(M_ICACHE_strobe),
+    .M_ICACHE_addr_o(M_ICACHE_addr),
+    .M_ICACHE_done_i(M_ICACHE_done),
+    .M_ICACHE_data_i(M_ICACHE_datain),
 
-    .M_DCACHE_strobe(M_DCACHE_strobe),
-    .M_DCACHE_addr(M_DCACHE_addr),
-    .M_DCACHE_rw(M_DCACHE_rw),
-    .M_DCACHE_dataout(M_DCACHE_dataout),
-    .M_DCACHE_done(M_DCACHE_done),
-    .M_DCACHE_datain(M_DCACHE_datain),
+    .M_DCACHE_strobe_o(M_DCACHE_strobe),
+    .M_DCACHE_addr_o(M_DCACHE_addr),
+    .M_DCACHE_rw_o(M_DCACHE_rw),
+    .M_DCACHE_data_o(M_DCACHE_dataout),
+    .M_DCACHE_done_i(M_DCACHE_done),
+    .M_DCACHE_data_i(M_DCACHE_datain),
 
-    .M_DEVICE_strobe(M_DEVICE_strobe),
-    .M_DEVICE_addr(M_DEVICE_addr),
-    .M_DEVICE_rw(M_DEVICE_rw),
-    .M_DEVICE_byte_enable(M_DEVICE_byte_enable),
-    .M_DEVICE_core2dev_data(M_DEVICE_core2dev_data),
-    .M_DEVICE_data_ready(M_DEVICE_data_ready),
-    .M_DEVICE_dev2core_data(M_DEVICE_dev2core_data)
+    .M_DEVICE_strobe_o(M_DEVICE_strobe),
+    .M_DEVICE_addr_o(M_DEVICE_addr),
+    .M_DEVICE_rw_o(M_DEVICE_rw),
+    .M_DEVICE_byte_enable_o(M_DEVICE_byte_enable),
+    .M_DEVICE_data_o(M_DEVICE_core2dev_data),
+    .M_DEVICE_data_ready_i(M_DEVICE_data_ready),
+    .M_DEVICE_data_i(M_DEVICE_dev2core_data)
 );
 
 endmodule

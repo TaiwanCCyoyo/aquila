@@ -54,8 +54,40 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  if (argc >=3 ) {
-    if (argv[2][0] == '1')
+  
+
+  if(argc < 3 || argv[3][0] == '0'){
+    cout << "Execute code in TCM\n";
+    fstream bin_file, mem_file;
+    bin_file.open(argv[1],ios::in | ios::binary);
+    mem_file.open("/home/twccyoyo/riscv/aquila_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem",ios::out);
+
+    char c0, c1, c2, c3;
+
+    if(!bin_file){
+        cout<<"Failed to open "<<argv[1]<<" file!!!"<<endl;
+        return 1;
+    } else if(!mem_file) {
+        cout<<"Failed to open "<<"/home/twccyoyo/riscv/Daicjou_2/aquila/ip_repo/aquila/hdl/mem/test.mem"<<" file!!!"<<endl;
+        return 1;
+    } else {
+        while(bin_file.get(c0)){
+            bin_file.get(c1);
+            bin_file.get(c2);
+            bin_file.get(c3);
+            mem_file <<setw(2) << setfill('0') << hex << (int)(unsigned char)c3;
+            mem_file <<setw(2) << setfill('0') << hex << (int)(unsigned char)c2;
+            mem_file <<setw(2) << setfill('0') << hex << (int)(unsigned char)c1;
+            mem_file <<setw(2) << setfill('0') << hex << (int)(unsigned char)c0;
+            mem_file << "\n";
+        }
+        bin_file.close();
+        mem_file.close();
+    }
+  }
+
+  if (argc > 3 ) {
+    if (argv[4][0] == '1')
       rv_test_enable = true;
     cout << "set rv_test_enable to " << (rv_test_enable ? "\"true\"" : "\"false\"") << endl;
   }
@@ -69,8 +101,9 @@ int main(int argc, char **argv)
 #endif
   uint32_t entry_addr = 0x00000000;
 
-  elf_symbols = sim_mem_load_program(top->aquila_testharness->mock_ram, string(argv[1]), &entry_addr);
-
+  if(argc > 2 && argv[3][0] == '1'){
+    elf_symbols = sim_mem_load_program(top->aquila_testharness->mock_ram, string(argv[1]), &entry_addr);
+  }
   if (rv_test_enable) {
     if (elf_symbols.count("tohost")){
       tohost_addr = static_cast<uint32_t>(elf_symbols["tohost"]);

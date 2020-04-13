@@ -57,27 +57,26 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module uncond_BHT
-#(parameter ENTRY_NUM = 24, ADDR_WIDTH = 5, DATA_WIDTH = 32)
+module uncond_BHT #( parameter ENTRY_NUM = 24, ADDR_WIDTH = 5, DATA_WIDTH = 32 )
 (
     // External Signals
-    input                     clk,
-    input                     rst,
-    input                     stall,
+    input                     clk_i,
+    input                     rst_i,
+    input                     stall_i,
 
     // from Program_Counter
-    input  [DATA_WIDTH-1 : 0] pc_IF,
+    input  [DATA_WIDTH-1 : 0] pc_IF_i,
 
     // from Decode_Eexcute_Pipeline
-    input                     is_uncond_branch,
-    input  [DATA_WIDTH-1 : 0] pc_EXE,
+    input                     is_uncond_branch_i,
+    input  [DATA_WIDTH-1 : 0] pc_EXE_i,
 
     // from Execution
-    input  [DATA_WIDTH-1 : 0] branch_target_addr,
+    input  [DATA_WIDTH-1 : 0] branch_target_addr_i,
 
     // to Program_Counter
-    output                    uncond_branch_hit,
-    output [DATA_WIDTH-1 : 0] uncond_branch_target_addr
+    output                    uncond_branch_hit_o,
+    output [DATA_WIDTH-1 : 0] uncond_branch_target_addr_o
 );
 
 reg  [DATA_WIDTH-1 : 0] uncond_branch_pc_table[ENTRY_NUM - 1: 0];
@@ -88,14 +87,14 @@ wire [ENTRY_NUM-1  : 0] addr_hit_EXE;
 reg  [ADDR_WIDTH-1 : 0] read_addr;
 reg  [ADDR_WIDTH-1 : 0] write_addr;
 
-assign we = is_uncond_branch & ~|addr_hit_EXE;
+assign we = is_uncond_branch_i & ~|addr_hit_EXE;
 
 genvar i;
 generate
     for (i = 0; i < ENTRY_NUM; i = i + 1)
     begin
-        assign addr_hit_IF[i] = (uncond_branch_pc_table[i] == pc_IF);
-        assign addr_hit_EXE[i] = (uncond_branch_pc_table[i] == pc_EXE);
+        assign addr_hit_IF[i] = (uncond_branch_pc_table[i] == pc_IF_i);
+        assign addr_hit_EXE[i] = (uncond_branch_pc_table[i] == pc_EXE_i);
     end
 endgenerate
 
@@ -150,13 +149,13 @@ begin
     endcase
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         write_addr <= 0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
         write_addr <= write_addr;
     end
@@ -167,21 +166,21 @@ begin
 end
 
 integer idx;
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         for (idx = 0; idx < ENTRY_NUM; idx = idx + 1)
             uncond_branch_pc_table[idx] <= 0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
         for (idx = 0; idx < ENTRY_NUM; idx = idx + 1)
             uncond_branch_pc_table[idx] <= uncond_branch_pc_table[idx];
     end
     else if (we)
     begin
-        uncond_branch_pc_table[write_addr] <= pc_EXE;
+        uncond_branch_pc_table[write_addr] <= pc_EXE_i;
     end
 end
 
@@ -190,18 +189,18 @@ end
 //
 distri_ram #(.ENTRY_NUM(ENTRY_NUM), .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH))
 uncond_BHT_distri_ram_0(
-    .clk(clk),
-    .we(we),
-    .write_addr(write_addr),
-    .read_addr(read_addr),
-    .branch_target_addr(branch_target_addr),
+    .clk_i(clk_i),
+    .we_i(we),
+    .write_addr_i(write_addr),
+    .read_addr_i(read_addr),
+    .branch_target_addr_i(branch_target_addr_i),
     .data_o(data_o)
 );
 
 // ===========================================================================
 //  Outputs signals
 //
-assign uncond_branch_hit = ( | addr_hit_IF) & ( | pc_IF);
-assign uncond_branch_target_addr = {32{( | addr_hit_IF)}} & data_o;
+assign uncond_branch_hit_o = ( | addr_hit_IF) & ( | pc_IF_i);
+assign uncond_branch_target_addr_o = {32{( | addr_hit_IF)}} & data_o;
 
 endmodule // uncond_BHT

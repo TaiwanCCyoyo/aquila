@@ -50,11 +50,12 @@ After `make core_verilate` or `make core_versyn` command,it will create *core_ob
 
 To run verilator model, in *core_obj_dir* execute:
 ```bash
-$ ./Vaquila_testharness [RISCV_TEST_ELF] [RVTEST(0/1),default 0]
+$ ./Vaquila_testharness [(RISCV_TEST_BIN/RISCV_TEST_ELF)] [0/1(TCM/dram), default 0] [RVTEST(0/1),default 0]
 ```
 For example:
 ```bash
-$ ./Vaquila_testharness ../ver-test-bug/_test.o 0
+$ ./Vaquila_testharness ../ver-test-bug/_test.o 1 0
+$ ./Vaquila_testharness ../ver-test-bug/test.bin 0 0
 ```
 If you want to run risc-tests. It will check tohost value and measure your test status:
 ```bash
@@ -105,6 +106,7 @@ You can change `compress` boolean varible in log_proccess.cpp to generate cycle 
 |UART_STATUS_ADDR|memory map io register address for UART_STATUS|don't modify|32'hC0000008|
 |TOHOST_VAL_ADDR|memory map io register address for fesvr "tohost" varible|don't modify|32'hC1000000|
 ## CI
+## CI can not use now
 Continuous Integration(CI) bases on Travis CI that run riscv-tests RISCV assembly tests. Travis CI runs these tests on Verilator. Travis CI builds riscv-gnu-toolchain, verilator model and run riscv-tests automatically.
 
 Aquila CI test current only execute 2 case sets: riscv32um-p, riscv32ui-p.

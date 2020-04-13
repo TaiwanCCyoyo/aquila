@@ -54,194 +54,116 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module memory_access#(DATA_WIDTH = 32)
+module memory_access #( parameter DATA_WIDTH = 32 )
 (
-    // External Signals
-    input  wire                   clk_i,
-    input  wire                   rst_i,
-    
-    // Singal to avoid repeat requests
-    input  wire                   stall_i,
-
-    // to Pipeline_Control
-    output wire                   stall_for_data_fetch_o,
-
     // from Execute_Memory_Pipeline
-    input  [DATA_WIDTH-1 : 0]     unaligned_data,       // from rs2
-    input  [1 : 0]                mem_addr_alignment,
-    input  [1 : 0]                mem_input_sel,
-    input  wire                    mem_we_i,
-    input  wire                    mem_re_i,
-    input  wire [DATA_WIDTH-1 : 0] mem_addr_i,
+    input  [DATA_WIDTH-1 : 0]     unaligned_data_i,       // from rs2
+    input  [1 : 0]                mem_addr_alignment_i,
+    input  [1 : 0]                mem_input_sel_i,
 
     // to d-cache
-    output reg  [DATA_WIDTH-1 : 0] data_o,           // data_write
-    output reg  [3: 0]             byte_write_sel,
-    output wire [DATA_WIDTH-1 : 0] data_rw_o,
-    output wire [DATA_WIDTH-1 : 0] mem_addr_o,
-    output reg                     data_req_o,
-
-    // from d-cache
-    input  wire                    data_ready_i,
+    output reg [DATA_WIDTH-1 : 0] data_o,           // data_write
+    output reg [3: 0]             byte_write_sel_o,
 
     // indicating memory alignment exception
-    output  reg                  memory_alignment_exception
+    output   reg                  memory_alignment_exception_o
 );
-//=======================================================
-// Parameter and Integer
-//=======================================================
-localparam d_IDLE   = 0,
-           d_WAIT   = 1;
-
-//=======================================================
-// Wire and Reg 
-//======================================================= 
-reg        dS, dS_nxt;
-reg        pipeline_stall;
-
-
-//=======================================================
-// User Logic                         
-//=======================================================
-//-----------------------------------------------
-// Data requset Finite State Machine
-//-----------------------------------------------
-always @(posedge clk_i)
-begin
-    if (rst_i)
-        dS <= d_IDLE;
-    else
-        dS <= dS_nxt;
-end
-
-always @(*)
-begin
-    case (dS)
-        d_IDLE:
-            if ((mem_re_i || mem_we_i))
-                dS_nxt = d_WAIT;
-            else
-                dS_nxt = d_IDLE;
-        d_WAIT:
-            if (data_ready_i)
-                dS_nxt = d_IDLE;
-            else
-                dS_nxt = d_WAIT;
-        default:
-            dS_nxt = d_IDLE;
-    endcase
-end
-
-//-----------------------------------------------
-// Output Signal
-//-----------------------------------------------
-assign stall_for_data_fetch_o = (dS_nxt == d_WAIT);
-assign mem_addr_o             = mem_addr_i;
-assign data_rw_o              = mem_we_i;
-
-always @(*)
-begin
-    if ( (dS == d_IDLE) && (mem_re_i || mem_we_i))
-        data_req_o = 1;
-    else
-        data_req_o = 0;
-end
 
 // store
 always @(*)
 begin
-    case (mem_addr_alignment)
+    case (mem_addr_alignment_i)
         2'b00:
         begin
-            case (mem_input_sel)
+            case (mem_input_sel_i)
                 2'b00:
                 begin   // sb
-                    data_o = {24'b0, unaligned_data[7: 0]};
-                    byte_write_sel = 4'b0001;
-                    memory_alignment_exception = 0;
+                    data_o = {24'b0, unaligned_data_i[7: 0]};
+                    byte_write_sel_o = 4'b0001;
+                    memory_alignment_exception_o = 0;
                 end
                 2'b01:
                 begin   // sh
-                    data_o = {16'b0, unaligned_data[15: 0]};
-                    byte_write_sel = 4'b0011;
-                    memory_alignment_exception = 0;
+                    data_o = {16'b0, unaligned_data_i[15: 0]};
+                    byte_write_sel_o = 4'b0011;
+                    memory_alignment_exception_o = 0;
                 end
                 2'b10:
                 begin   // sw
-                    data_o = unaligned_data;
-                    byte_write_sel = 4'b1111;
-                    memory_alignment_exception = 0;
+                    data_o = unaligned_data_i;
+                    byte_write_sel_o = 4'b1111;
+                    memory_alignment_exception_o = 0;
                 end
                 default:
                 begin
                     data_o = 0;
-                    byte_write_sel = 4'b0000;
-                    memory_alignment_exception = 1;
+                    byte_write_sel_o = 4'b0000;
+                    memory_alignment_exception_o = 1;
                 end
             endcase
         end
         2'b01:
         begin
-            case (mem_input_sel)
+            case (mem_input_sel_i)
                 2'b00:
                 begin   // sb
-                    data_o = {16'b0, unaligned_data[7: 0], 8'b0};
-                    byte_write_sel = 4'b0010;
-                    memory_alignment_exception = 0;
+                    data_o = {16'b0, unaligned_data_i[7: 0], 8'b0};
+                    byte_write_sel_o = 4'b0010;
+                    memory_alignment_exception_o = 0;
                 end
                 default:
                 begin
                     data_o = 0;
-                    byte_write_sel = 4'b0000;
-                    memory_alignment_exception = 1;
+                    byte_write_sel_o = 4'b0000;
+                    memory_alignment_exception_o = 1;
                 end
             endcase
         end
         2'b10:
         begin
-            case (mem_input_sel)
+            case (mem_input_sel_i)
                 2'b00:
                 begin
-                    data_o = {8'b0, unaligned_data[7: 0], 16'b0};
-                    byte_write_sel = 4'b0100;
-                    memory_alignment_exception = 0;
+                    data_o = {8'b0, unaligned_data_i[7: 0], 16'b0};
+                    byte_write_sel_o = 4'b0100;
+                    memory_alignment_exception_o = 0;
                 end
                 2'b01:
                 begin
-                    data_o = {unaligned_data[15: 0], 16'b0};
-                    byte_write_sel = 4'b1100;
-                    memory_alignment_exception = 0;
+                    data_o = {unaligned_data_i[15: 0], 16'b0};
+                    byte_write_sel_o = 4'b1100;
+                    memory_alignment_exception_o = 0;
                 end
                 default:
                 begin
                     data_o = 0;
-                    byte_write_sel = 4'b0000;
-                    memory_alignment_exception = 1;
+                    byte_write_sel_o = 4'b0000;
+                    memory_alignment_exception_o = 1;
                 end
             endcase
         end
         2'b11:
         begin
-            case (mem_input_sel)
+            case (mem_input_sel_i)
                 2'b00:
                 begin
-                    data_o = {unaligned_data[7: 0], 24'b0};
-                    byte_write_sel = 4'b1000;
-                    memory_alignment_exception = 0;
+                    data_o = {unaligned_data_i[7: 0], 24'b0};
+                    byte_write_sel_o = 4'b1000;
+                    memory_alignment_exception_o = 0;
                 end
                 default:
                 begin
                     data_o = 0;
-                    byte_write_sel = 4'b0000;
-                    memory_alignment_exception = 1;
+                    byte_write_sel_o = 4'b0000;
+                    memory_alignment_exception_o = 1;
                 end
             endcase
         end
         default:
         begin
             data_o = 0;
-            byte_write_sel = 4'b0000;
-            memory_alignment_exception = 0;
+            byte_write_sel_o = 4'b0000;
+            memory_alignment_exception_o = 0;
         end
     endcase
 end

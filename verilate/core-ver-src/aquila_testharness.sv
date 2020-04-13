@@ -100,8 +100,8 @@ wire [C_S_CONFIG_PORT_DATA_WIDTH - 1 : 0] M_DEVICE_dev2core_data;
 
 // Debug pc
 wire [31:0] debug_pc/*verilator public_flat*/;
-assign debug_pc = aquila_core.instr_addr;
-assign cur_instr_addr = aquila_core.instr_addr;
+assign debug_pc = aquila_core.p_i_addr;
+assign cur_instr_addr = aquila_core.p_i_addr;
 
 //wire [31:0] debug_rf [0:31]/*verilator public_flat*/;
 //genvar idx;
@@ -112,29 +112,29 @@ assign cur_instr_addr = aquila_core.instr_addr;
 
 // Instiantiation of the top-level Aquila core module.
   aquila_top aquila_core(
-      .clk(clk),
-      .rst(~rst_n),
-      .base_addr(main_memory_addr),
+      .clk_i(clk),
+      .rst_i(~rst_n),
+      .base_addr_i(main_memory_addr),
 
-      .M_ICACHE_strobe(M_ICACHE_strobe),
-      .M_ICACHE_addr(M_ICACHE_addr),
-      .M_ICACHE_done(M_ICACHE_done),
-      .M_ICACHE_datain(M_ICACHE_datain),
+      .M_ICACHE_strobe_o(M_ICACHE_strobe),
+      .M_ICACHE_addr_o(M_ICACHE_addr),
+      .M_ICACHE_done_i(M_ICACHE_done),
+      .M_ICACHE_data_i(M_ICACHE_datain),
 
-      .M_DCACHE_strobe(M_DCACHE_strobe),
-      .M_DCACHE_addr(M_DCACHE_addr),
-      .M_DCACHE_rw(M_DCACHE_rw),
-      .M_DCACHE_dataout(M_DCACHE_dataout),
-      .M_DCACHE_done(M_DCACHE_done),
-      .M_DCACHE_datain(M_DCACHE_datain),
+      .M_DCACHE_strobe_o(M_DCACHE_strobe),
+      .M_DCACHE_addr_o(M_DCACHE_addr),
+      .M_DCACHE_rw_o(M_DCACHE_rw),
+      .M_DCACHE_data_o(M_DCACHE_dataout),
+      .M_DCACHE_done_i(M_DCACHE_done),
+      .M_DCACHE_data_i(M_DCACHE_datain),
 
-      .M_DEVICE_strobe(M_DEVICE_strobe),
-      .M_DEVICE_addr(M_DEVICE_addr),
-      .M_DEVICE_rw(M_DEVICE_rw),
-      .M_DEVICE_byte_enable(M_DEVICE_byte_enable),
-      .M_DEVICE_core2dev_data(M_DEVICE_core2dev_data),
-      .M_DEVICE_data_ready(M_DEVICE_data_ready),
-      .M_DEVICE_dev2core_data(M_DEVICE_dev2core_data)
+      .M_DEVICE_strobe_o(M_DEVICE_strobe),
+      .M_DEVICE_addr_o(M_DEVICE_addr),
+      .M_DEVICE_rw_o(M_DEVICE_rw),
+      .M_DEVICE_byte_enable_o(M_DEVICE_byte_enable),
+      .M_DEVICE_data_o(M_DEVICE_core2dev_data),
+      .M_DEVICE_data_ready_i(M_DEVICE_data_ready),
+      .M_DEVICE_data_i(M_DEVICE_dev2core_data)
   );
 
   dp_ram mock_ram(

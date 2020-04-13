@@ -56,28 +56,28 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module forwarding_unit #(parameter DATA_WIDTH = 32)
+module forwarding_unit #( parameter DATA_WIDTH = 32 )
 (
     // from Decode_Eexcute_Pipeline Register
-    input  [4: 0]             rs1_addr,
-    input  [4: 0]             rs2_addr,
-    input  [DATA_WIDTH-1 : 0] rs1_data,
-    input  [DATA_WIDTH-1 : 0] rs2_data,
+    input  [4: 0]             rs1_addr_i,
+    input  [4: 0]             rs2_addr_i,
+    input  [DATA_WIDTH-1 : 0] rs1_data_i,
+    input  [DATA_WIDTH-1 : 0] rs2_data_i,
 
     // from Execute_Memory_Pipeline Register
-    input  [4: 0]             rd_addr_EXE_MEM,
-    input                     regfile_we_EXE_MEM,
-    input  [2: 0]             regfile_input_sel_EXE_MEM,
-    input  [DATA_WIDTH-1 : 0] p_data_EXE_MEM,
+    input  [4: 0]             rd_addr_EXE_MEM_i,
+    input                     regfile_we_EXE_MEM_i,
+    input  [2: 0]             regfile_input_sel_EXE_MEM_i,
+    input  [DATA_WIDTH-1 : 0] p_data_EXE_MEM_i,
 
     // from Memory_Write_Back_Pipeline Register
-    input  [4: 0]             rd_addr_MEM_WB,
-    input                     regfile_we_MEM_WB,
-    input  [DATA_WIDTH-1 : 0] rd_data_MEM_WB,
+    input  [4: 0]             rd_addr_MEM_WB_i,
+    input                     regfile_we_MEM_WB_i,
+    input  [DATA_WIDTH-1 : 0] rd_data_MEM_WB_i,
 
     // to Execution Stage
-    output [DATA_WIDTH-1 : 0] rs1_fwd,
-    output [DATA_WIDTH-1 : 0] rs2_fwd
+    output [DATA_WIDTH-1 : 0] rs1_fwd_o,
+    output [DATA_WIDTH-1 : 0] rs2_fwd_o
 );
 
 wire is_rs1_rd_EXE_MEM_same, is_rs2_rd_EXE_MEM_same;
@@ -92,37 +92,37 @@ wire [DATA_WIDTH-1 : 0] correct_rs1_data, correct_rs2_data;
 wire [DATA_WIDTH-1 : 0] correct_fwd_src2;
 wire [DATA_WIDTH-1 : 0] correct_fwd_src1;
 
-assign is_rs1_rd_EXE_MEM_same = (rs1_addr == rd_addr_EXE_MEM);
-assign is_rs2_rd_EXE_MEM_same = (rs2_addr == rd_addr_EXE_MEM);
-assign is_rs1_rd_MEM_WB_same = (rs1_addr == rd_addr_MEM_WB);
-assign is_rs2_rd_MEM_WB_same = (rs2_addr == rd_addr_MEM_WB);
+assign is_rs1_rd_EXE_MEM_same = (rs1_addr_i == rd_addr_EXE_MEM_i);
+assign is_rs2_rd_EXE_MEM_same = (rs2_addr_i == rd_addr_EXE_MEM_i);
+assign is_rs1_rd_MEM_WB_same = (rs1_addr_i == rd_addr_MEM_WB_i);
+assign is_rs2_rd_MEM_WB_same = (rs2_addr_i == rd_addr_MEM_WB_i);
 
-assign is_rd_EXE_MEM_not_zero = ( | rd_addr_EXE_MEM);
-assign is_rd_MEM_WB_not_zero = ( | rd_addr_MEM_WB);
+assign is_rd_EXE_MEM_not_zero = ( | rd_addr_EXE_MEM_i);
+assign is_rd_MEM_WB_not_zero = ( | rd_addr_MEM_WB_i);
 
-assign rs1_EXE_MEM_fwd = regfile_we_EXE_MEM & is_rs1_rd_EXE_MEM_same & is_rd_EXE_MEM_not_zero;
-assign rs2_EXE_MEM_fwd = regfile_we_EXE_MEM & is_rs2_rd_EXE_MEM_same & is_rd_EXE_MEM_not_zero;
-assign rs1_MEM_WB_fwd = regfile_we_MEM_WB & is_rs1_rd_MEM_WB_same & is_rd_MEM_WB_not_zero;
-assign rs2_MEM_WB_fwd = regfile_we_MEM_WB & is_rs2_rd_MEM_WB_same & is_rd_MEM_WB_not_zero;
+assign rs1_EXE_MEM_fwd = regfile_we_EXE_MEM_i & is_rs1_rd_EXE_MEM_same & is_rd_EXE_MEM_not_zero;
+assign rs2_EXE_MEM_fwd = regfile_we_EXE_MEM_i & is_rs2_rd_EXE_MEM_same & is_rd_EXE_MEM_not_zero;
+assign rs1_MEM_WB_fwd = regfile_we_MEM_WB_i & is_rs1_rd_MEM_WB_same & is_rd_MEM_WB_not_zero;
+assign rs2_MEM_WB_fwd = regfile_we_MEM_WB_i & is_rs2_rd_MEM_WB_same & is_rd_MEM_WB_not_zero;
 
-assign correct_fwd_src2 = rd_data_MEM_WB;
-assign correct_fwd_src1 = p_data_EXE_MEM;    // 'd0, 'd1, 'd2 case will handle by
-                                             // pipeline_control (load-use data hazard)
+assign correct_fwd_src2 = rd_data_MEM_WB_i;
+assign correct_fwd_src1 = p_data_EXE_MEM_i;    // 'd0, 'd1, 'd2 case will handle by
+                                               // pipeline_control (load-use data hazard)
 
 assign correct_rs1_data =
        rs1_EXE_MEM_fwd ? correct_fwd_src1
        : rs1_MEM_WB_fwd ? correct_fwd_src2
-       : rs1_data;
+       : rs1_data_i;
 
 assign correct_rs2_data =
        rs2_EXE_MEM_fwd ? correct_fwd_src1
        : rs2_MEM_WB_fwd ? correct_fwd_src2
-       : rs2_data;
+       : rs2_data_i;
 
 // ================================================================================
 //  Outputs signals
 //
-assign rs1_fwd = correct_rs1_data;
-assign rs2_fwd = correct_rs2_data;
+assign rs1_fwd_o = correct_rs1_data;
+assign rs2_fwd_o = correct_rs2_data;
 
 endmodule   // forwarding

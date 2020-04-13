@@ -57,31 +57,31 @@
 
 module decode #(parameter DATA_WIDTH = 32)
 (
-    //  Processor clokc and reset signals.
-    input                     clk,
-    input                     rst,
+    //  Processor clock and reset signals.
+    input                     clk_i,
+    input                     rst_i,
 
     // Processor pipeline stall signal.
-    input                     stall,
+    input                     stall_i,
 
     // Processor pipeline flush signal.
-    input                     flush,
+    input                     flush_i,
 
     // Signals from the Fetch Stage.
-    input [DATA_WIDTH-1 : 0]  pc,
-    input [DATA_WIDTH-1 : 0]  instruction,
-    input                     instr_valid,
-    input                     cond_branch_hit_ID,
-    input                     cond_branch_result_ID,
-    input                     uncond_branch_hit_ID,
+    input [DATA_WIDTH-1 : 0]  pc_i,
+    input [DATA_WIDTH-1 : 0]  instruction_i,
+    input                     instr_valid_i,
+    input                     cond_branch_hit_ID_i,
+    input                     cond_branch_result_ID_i,
+    input                     uncond_branch_hit_ID_i,
 
     // Instruction operands from the Register File. To be forwarded.
-    input  [DATA_WIDTH-1 : 0] rs1_data,
-    input  [DATA_WIDTH-1 : 0] rs2_data,
+    input  [DATA_WIDTH-1 : 0] rs1_data_i,
+    input  [DATA_WIDTH-1 : 0] rs2_data_i,
 
     // Operand register IDs to the Register File and the Pipeline Controller
-    output [4: 0]             rs1_addr2regfile_o,
-    output [4: 0]             rs2_addr2regfile_o,
+    output [4: 0]             rs1_addr_o,
+    output [4: 0]             rs2_addr_o,
 
     // System Jump operation
     output                    sys_jump_o,
@@ -102,9 +102,9 @@ module decode #(parameter DATA_WIDTH = 32)
     output reg                    is_branch_o,
     output reg                    is_jal_o,
     output reg                    is_jalr_o,
-    output reg                    cond_branch_hit_EXE,
-    output reg                    cond_branch_result_EXE,
-    output reg                    uncond_branch_hit_EXE,
+    output reg                    cond_branch_hit_EXE_o,
+    output reg                    cond_branch_result_EXE_o,
+    output reg                    uncond_branch_hit_EXE_o,
 
     // to CSR
     output reg                    is_csr_instr_o,
@@ -123,10 +123,10 @@ module decode #(parameter DATA_WIDTH = 32)
     output reg [4: 0]             rd_addr_o,
 
     // to Forwarding_Unit
-    output reg [4: 0]             rs1_addr_o,
-    output reg [4: 0]             rs2_addr_o,
-    output reg [DATA_WIDTH-1 : 0] rs1_data_o,
-    output reg [DATA_WIDTH-1 : 0] rs2_data_o
+    output reg [4: 0]             rs1_addr2fwd_o,
+    output reg [4: 0]             rs2_addr2fwd_o,
+    output reg [DATA_WIDTH-1 : 0] rs1_data2fwd_o,
+    output reg [DATA_WIDTH-1 : 0] rs2_data2fwd_o
 );
 
 // Interal signals of the Decode Stage.
@@ -212,7 +212,7 @@ wire [4: 0]             csr_imm;
  *              (2) 2'b10 : word                                                 *
  * *******************************************************************************/
 
-wire [DATA_WIDTH-1 : 0] rv32_instr = instruction;
+wire [DATA_WIDTH-1 : 0] rv32_instr = instruction_i;
 wire [ 6 : 0]           opcode = rv32_instr[6: 0];
 wire [ 4 : 0]           rv32_shamt = rv32_instr[24: 20];
 wire [ 2 : 0]           rv32_funct3 = rv32_instr[14: 12];
@@ -382,8 +382,8 @@ assign is_jalr = rv32_jalr;
 assign is_branch = rv32_branch;
 
 assign rd_addr = rv32_instr[11: 7];
-assign rs1_addr2regfile_o = rv32_instr[19: 15];
-assign rs2_addr2regfile_o = rv32_instr[24: 20];
+assign rs1_addr_o = rv32_instr[19: 15];
+assign rs2_addr_o = rv32_instr[24: 20];
 
 assign mem_input_sel = rv32_funct3[1: 0];         // {00: b}, {01: h}, {10: w}
 assign mem_load_ext_sel = rv32_funct3[2];         // {0: signed extension},
@@ -447,135 +447,135 @@ assign illegal_instr_o =     // the instructions that are not supported currentl
 //////////////////////////////////////////////////////////////////
 //  Output to other stages
 //////////////////////////////////////////////////////////////////
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         pc_o <= 0;
-        rs1_data_o <= 0;
-        rs2_data_o <= 0;
-        imm_o   <= 0;
-        inputA_sel_o    <= 2;
-        inputB_sel_o    <= 0;
+        rs1_data2fwd_o <= 0;
+        rs2_data2fwd_o <= 0;
+        imm_o <= 0;
+        inputA_sel_o <= 2;
+        inputB_sel_o <= 0;
         operation_sel_o <= 0;
         mem_load_ext_sel_o  <= 0;
         mem_input_sel_o <= 0;
-        alu_muldiv_sel_o    <= 0;
-        shift_sel_o  <= 0;
+        alu_muldiv_sel_o <= 0;
+        shift_sel_o <= 0;
         is_branch_o <= 0;
-        is_jal_o    <= 0;
-        is_jalr_o   <= 0;
-        regfile_we_o    <= 1;
+        is_jal_o <= 0;
+        is_jalr_o <= 0;
+        regfile_we_o <= 1;
         regfile_input_sel_o <= 4;
-        mem_we_o    <= 0;
-        mem_re_o    <= 0;
+        mem_we_o <= 0;
+        mem_re_o <= 0;
         mem_input_sel_o <= 0;
-        rd_addr_o   <= 0;
-        rs1_addr_o  <= 0;
-        rs2_addr_o  <= 0;
-        is_csr_instr_o  <= 0;
-        csr_addr_o  <= 0;
-        csr_imm_o   <= 0;
-        instr_valid_o   <= 0;
-        cond_branch_hit_EXE <= 0;
-        cond_branch_result_EXE <= 0;
-        uncond_branch_hit_EXE <= 0;
+        rd_addr_o <= 0;
+        rs1_addr2fwd_o <= 0;
+        rs2_addr2fwd_o <= 0;
+        is_csr_instr_o <= 0;
+        csr_addr_o <= 0;
+        csr_imm_o <= 0;
+        instr_valid_o <= 0;
+        cond_branch_hit_EXE_o <= 0;
+        cond_branch_result_EXE_o <= 0;
+        uncond_branch_hit_EXE_o <= 0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
-        pc_o <= pc_o ;
-        rs1_data_o <= rs1_data_o ;
-        rs2_data_o <= rs2_data_o ;
-        imm_o   <= imm_o    ;
-        inputA_sel_o    <= inputA_sel_o ;
-        inputB_sel_o    <= inputB_sel_o ;
-        operation_sel_o <= operation_sel_o  ;
-        mem_load_ext_sel_o  <= mem_load_ext_sel_o   ;
-        mem_input_sel_o <= mem_input_sel_o  ;
-        alu_muldiv_sel_o    <= alu_muldiv_sel_o ;
-        shift_sel_o  <= shift_sel_o   ;
-        is_branch_o <= is_branch_o  ;
-        is_jal_o    <= is_jal_o ;
-        is_jalr_o   <= is_jalr_o    ;
-        regfile_we_o    <= regfile_we_o ;
-        regfile_input_sel_o <= regfile_input_sel_o  ;
-        mem_we_o    <= mem_we_o ;
-        mem_re_o    <= mem_re_o ;
-        mem_input_sel_o <= mem_input_sel_o  ;
-        rd_addr_o   <= rd_addr_o    ;
-        rs1_addr_o  <= rs1_addr_o   ;
-        rs2_addr_o  <= rs2_addr_o   ;
-        is_csr_instr_o  <= is_csr_instr_o   ;
-        csr_addr_o  <= csr_addr_o   ;
-        csr_imm_o   <= csr_imm_o    ;
-        instr_valid_o   <= instr_valid_o    ;
-        cond_branch_hit_EXE <= cond_branch_hit_EXE  ;
-        cond_branch_result_EXE <= cond_branch_result_EXE    ;
-        uncond_branch_hit_EXE <= uncond_branch_hit_EXE  ;
+        pc_o <= pc_o;
+        rs1_data2fwd_o <= rs1_data2fwd_o;
+        rs2_data2fwd_o <= rs2_data2fwd_o;
+        imm_o <= imm_o;
+        inputA_sel_o <= inputA_sel_o;
+        inputB_sel_o <= inputB_sel_o;
+        operation_sel_o <= operation_sel_o;
+        mem_load_ext_sel_o <= mem_load_ext_sel_o;
+        mem_input_sel_o <= mem_input_sel_o;
+        alu_muldiv_sel_o <= alu_muldiv_sel_o;
+        shift_sel_o <= shift_sel_o;
+        is_branch_o <= is_branch_o;
+        is_jal_o <= is_jal_o;
+        is_jalr_o <= is_jalr_o;
+        regfile_we_o <= regfile_we_o;
+        regfile_input_sel_o <= regfile_input_sel_o;
+        mem_we_o <= mem_we_o;
+        mem_re_o <= mem_re_o;
+        mem_input_sel_o <= mem_input_sel_o;
+        rd_addr_o <= rd_addr_o;
+        rs1_addr2fwd_o <= rs1_addr2fwd_o;
+        rs2_addr2fwd_o <= rs2_addr2fwd_o;
+        is_csr_instr_o <= is_csr_instr_o;
+        csr_addr_o <= csr_addr_o;
+        csr_imm_o <= csr_imm_o;
+        instr_valid_o <= instr_valid_o;
+        cond_branch_hit_EXE_o <= cond_branch_hit_EXE_o;
+        cond_branch_result_EXE_o <= cond_branch_result_EXE_o;
+        uncond_branch_hit_EXE_o <= uncond_branch_hit_EXE_o;
     end
-    else if (flush)
+    else if (flush_i)
     begin // nop instruction = 0000_0000_0000_0000_0000_0000_0001_0011 = 32'h13
-        pc_o <= pc;
-        rs1_data_o <= 0;
-        rs2_data_o <= 0;
-        imm_o   <= 0;
-        inputA_sel_o    <= 2;
-        inputB_sel_o    <= 0;
+        pc_o <= pc_i;
+        rs1_data2fwd_o <= 0;
+        rs2_data2fwd_o <= 0;
+        imm_o <= 0;
+        inputA_sel_o <= 2;
+        inputB_sel_o <= 0;
         operation_sel_o <= 0;
-        mem_load_ext_sel_o  <= 0;
+        mem_load_ext_sel_o <= 0;
         mem_input_sel_o <= 0;
-        alu_muldiv_sel_o    <= 0;
-        shift_sel_o  <= 0;
+        alu_muldiv_sel_o <= 0;
+        shift_sel_o <= 0;
         is_branch_o <= 0;
-        is_jal_o    <= 0;
-        is_jalr_o   <= 0;
-        regfile_we_o    <= 1;
+        is_jal_o <= 0;
+        is_jalr_o <= 0;
+        regfile_we_o <= 1;
         regfile_input_sel_o <= 4;
-        mem_we_o    <= 0;
-        mem_re_o    <= 0;
+        mem_we_o <= 0;
+        mem_re_o <= 0;
         mem_input_sel_o <= 0;
-        rd_addr_o   <= 0;
-        rs1_addr_o  <= 0;
-        rs2_addr_o  <= 0;
-        is_csr_instr_o  <= 0;
-        csr_addr_o  <= 0;
-        csr_imm_o   <= 0;
-        instr_valid_o   <= 0;
-        cond_branch_hit_EXE <= 0;
-        cond_branch_result_EXE <= 0;
-        uncond_branch_hit_EXE <= 0;
+        rd_addr_o <= 0;
+        rs1_addr2fwd_o <= 0;
+        rs2_addr2fwd_o <= 0;
+        is_csr_instr_o <= 0;
+        csr_addr_o <= 0;
+        csr_imm_o <= 0;
+        instr_valid_o <= 0;
+        cond_branch_hit_EXE_o <= 0;
+        cond_branch_result_EXE_o <= 0;
+        uncond_branch_hit_EXE_o <= 0;
     end
     else
     begin
-        pc_o <= pc;
-        rs1_data_o <= rs1_data;
-        rs2_data_o <= rs2_data;
-        imm_o   <= imm;
-        inputA_sel_o    <= inputA_sel;
-        inputB_sel_o    <= inputB_sel;
+        pc_o <= pc_i;
+        rs1_data2fwd_o <= rs1_data_i;
+        rs2_data2fwd_o <= rs2_data_i;
+        imm_o <= imm;
+        inputA_sel_o <= inputA_sel;
+        inputB_sel_o <= inputB_sel;
         operation_sel_o <= operation_sel;
-        mem_load_ext_sel_o  <= mem_load_ext_sel;
+        mem_load_ext_sel_o <= mem_load_ext_sel;
         mem_input_sel_o <= mem_input_sel;
-        alu_muldiv_sel_o    <= alu_muldiv_sel;
-        shift_sel_o  <= shift_sel;
+        alu_muldiv_sel_o <= alu_muldiv_sel;
+        shift_sel_o <= shift_sel;
         is_branch_o <= is_branch;
-        is_jal_o    <= is_jal;
-        is_jalr_o   <= is_jalr;
-        regfile_we_o    <= regfile_we;
+        is_jal_o <= is_jal;
+        is_jalr_o <= is_jalr;
+        regfile_we_o <= regfile_we;
         regfile_input_sel_o <= regfile_input_sel;
-        mem_we_o    <= mem_we;
-        mem_re_o    <= mem_re;
+        mem_we_o <= mem_we;
+        mem_re_o <= mem_re;
         mem_input_sel_o <= mem_input_sel;
-        rd_addr_o   <= rd_addr;
-        rs1_addr_o  <= rs1_addr2regfile_o;
-        rs2_addr_o  <= rs2_addr2regfile_o;
-        is_csr_instr_o  <= is_csr_instr;
-        csr_addr_o  <= csr_addr;
-        csr_imm_o   <= csr_imm;
-        instr_valid_o   <= instr_valid;
-        cond_branch_hit_EXE <= cond_branch_hit_ID;
-        cond_branch_result_EXE <= cond_branch_result_ID;
-        uncond_branch_hit_EXE <= uncond_branch_hit_ID;
+        rd_addr_o <= rd_addr;
+        rs1_addr2fwd_o <= rs1_addr_o;
+        rs2_addr2fwd_o <= rs2_addr_o;
+        is_csr_instr_o <= is_csr_instr;
+        csr_addr_o <= csr_addr;
+        csr_imm_o <= csr_imm;
+        instr_valid_o <= instr_valid_i;
+        cond_branch_hit_EXE_o <= cond_branch_hit_ID_i;
+        cond_branch_result_EXE_o <= cond_branch_result_ID_i;
+        uncond_branch_hit_EXE_o <= uncond_branch_hit_ID_i;
     end
 end
 

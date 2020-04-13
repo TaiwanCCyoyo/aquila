@@ -53,26 +53,25 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module writeback#(parameter DATA_WIDTH = 32)
+module writeback #( parameter DATA_WIDTH = 32 )
 (
     // External Signals
-    input                     clk,
-    input                     rst,
+    input                     clk_i,
+    input                     rst_i,
 
     // Signal that stalls this Memory-WriteBack Pipeline Stage
-    input                     stall,
+    input                     stall_i,
 
     // from Execution Execute_Memory_Pipeline
-    input                     regfile_we,
-    input  [4 : 0]            rd_addr,
-    input  [2 : 0]            regfile_input_sel,
-    input                     mem_load_ext_sel,
-    input  [1 : 0]            mem_addr_alignment,
-    input  [DATA_WIDTH-1 : 0] p_data,
+    input                     regfile_we_i,
+    input  [4 : 0]            rd_addr_i,
+    input  [2 : 0]            regfile_input_sel_i,
+    input                     mem_load_ext_sel_i,
+    input  [1 : 0]            mem_addr_alignment_i,
+    input  [DATA_WIDTH-1 : 0] p_data_i,
 
     // from Data Memory
-    input [DATA_WIDTH-1 : 0]  mem_data,
-    input wire                mem_data_vld_i,
+    input [DATA_WIDTH-1 : 0]  mem_data_i,
 
     // to RegisterFile
     output                    rd_we_o,
@@ -86,11 +85,10 @@ reg [4: 0]             rd_addr_r;
 reg                    mem_load_ext_sel_r;
 reg [1: 0]             mem_addr_alignment_r;
 reg [DATA_WIDTH-1 : 0] p_data_r;
-reg [DATA_WIDTH-1 : 0] mem_data_r;
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         regfile_we_r <= 0;
         rd_addr_r   <= 0;
@@ -98,9 +96,8 @@ begin
         mem_load_ext_sel_r <= 0;
         mem_addr_alignment_r <= 0;
         p_data_r    <= 0;
-        mem_data_r <= 32'b0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
         regfile_we_r <= regfile_we_r;
         rd_addr_r   <= rd_addr_r;
@@ -108,30 +105,38 @@ begin
         mem_load_ext_sel_r <= mem_load_ext_sel_r;
         mem_addr_alignment_r <= mem_addr_alignment_r;
         p_data_r    <= p_data_r;
-        mem_data_r <= mem_data_r;
     end
     else
     begin
-        regfile_we_r <= regfile_we;
-        rd_addr_r   <= rd_addr;
-        regfile_input_sel_r <= regfile_input_sel;
-        mem_load_ext_sel_r <= mem_load_ext_sel;
-        mem_addr_alignment_r <= mem_addr_alignment;
-        p_data_r    <= p_data;
-        mem_data_r <= mem_data;
+        regfile_we_r <= regfile_we_i;
+        rd_addr_r   <= rd_addr_i;
+        regfile_input_sel_r <= regfile_input_sel_i;
+        mem_load_ext_sel_r <= mem_load_ext_sel_i;
+        mem_addr_alignment_r <= mem_addr_alignment_i;
+        p_data_r    <= p_data_i;
     end
 end
 
+reg [31: 0] mem_data_r;
+always @(posedge clk_i)
+begin
+    if (rst_i)
+        mem_data_r <= 32'b0;
+    else if (stall_i)
+        mem_data_r <= mem_data_r;
+    else
+        mem_data_r <= mem_data_i;
+end
 
-reg [31 : 0] aligned_data_o, rd_data;
+reg [31 : 0] aligned_data, rd_data;
 always @(*)
 begin
     case (mem_addr_alignment_r)
-        2'b00: aligned_data_o = mem_data_r;
-        2'b01: aligned_data_o = {mem_data_r[7: 0], mem_data_r[31: 8]};
-        2'b10: aligned_data_o = {mem_data_r[15: 0], mem_data_r[31: 16]};
-        2'b11: aligned_data_o = {mem_data_r[23: 0], mem_data_r[31: 24]};
-        default: aligned_data_o = mem_data_r;
+        2'b00: aligned_data = mem_data_r;
+        2'b01: aligned_data = {mem_data_r[7: 0], mem_data_r[31: 8]};
+        2'b10: aligned_data = {mem_data_r[15: 0], mem_data_r[31: 16]};
+        2'b11: aligned_data = {mem_data_r[23: 0], mem_data_r[31: 24]};
+        default: aligned_data = mem_data_r;
     endcase
 end
 
@@ -139,18 +144,19 @@ always @(*)
 begin
     case (regfile_input_sel_r)
         3'b000: rd_data = mem_load_ext_sel_r ?
-                          {24'b0, aligned_data_o[7 : 0]} :
-                          {{24{aligned_data_o[7]}}, aligned_data_o[7 : 0]};   // load byte
+                          {24'b0, aligned_data[7 : 0]} :
+                          {{24{aligned_data[7]}}, aligned_data[7 : 0]};   // load byte
         3'b001: rd_data = mem_load_ext_sel_r ?
-                          {16'b0, aligned_data_o[15 : 0]} :
-                          {{16{aligned_data_o[15]}}, aligned_data_o[15 : 0]}; // load half word
-        3'b010: rd_data = aligned_data_o;                                     // load word
-        default: rd_data = p_data_r;                                          // data from processor
+                          {16'b0, aligned_data[15 : 0]} :
+                          {{16{aligned_data[15]}}, aligned_data[15 : 0]}; // load half word
+        3'b010: rd_data = aligned_data;                                   // load word
+        default: rd_data = p_data_r;                                      // data from processor
     endcase
 end
 
 assign rd_we_o = regfile_we_r;
 assign rd_addr_o = rd_addr_r;
-assign rd_data_o    = rd_data;
+assign rd_data_o = rd_data;
 
 endmodule // memory_writeback
+

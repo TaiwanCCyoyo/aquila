@@ -53,36 +53,35 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module bpu
-#(parameter ENTRY_NUM = 24, ADDR_WIDTH = 5, DATA_WIDTH = 32)
+module bpu #( parameter ENTRY_NUM = 24, ADDR_WIDTH = 5, DATA_WIDTH = 32 )
 (
     // System signals
-    input                       clk,
-    input                       rst,
-    input                       stall,
+    input                       clk_i,
+    input                       rst_i,
+    input                       stall_i,
 
     // from Program_Counter
-    input  [DATA_WIDTH - 1 : 0] pc_IF,
+    input  [DATA_WIDTH - 1 : 0] pc_IF_i,
 
     // from Decode_Execute_Pipeline
-    input                       is_cond_branch,
-    input  [DATA_WIDTH - 1 : 0] pc_EXE,
+    input                       is_cond_branch_i,
+    input  [DATA_WIDTH - 1 : 0] pc_EXE_i,
 
     // from Execute
-    input                       branch_taken,
-    input  [DATA_WIDTH-1 : 0]   branch_target_addr,
-    input  cond_branch_misprediction,
+    input                       branch_taken_i,
+    input  [DATA_WIDTH-1 : 0]   branch_target_addr_i,
+    input                       cond_branch_misprediction_i,
 
     // to Program_Counter
-    output                      cond_branch_hit,
-    output                      cond_branch_result,
-    output [DATA_WIDTH-1 : 0]   cond_branch_target_addr
+    output                      cond_branch_hit_o,
+    output                      cond_branch_result_o,
+    output [DATA_WIDTH-1 : 0]   cond_branch_target_addr_o
 );
 
 // ===========================================================================
 //
 wire we;
-wire [DATA_WIDTH - 1 : 0] data_o;
+wire [DATA_WIDTH - 1 : 0] data_out;
 wire [ENTRY_NUM - 1  : 0] addr_hit_IF, addr_hit_EXE;
 reg  [ADDR_WIDTH - 1 : 0] read_addr, update_addr;
 reg  [ADDR_WIDTH - 1 : 0] write_addr;
@@ -91,24 +90,24 @@ reg  [DATA_WIDTH - 1 : 0] cond_branch_pc_table[ENTRY_NUM - 1 : 0];
 // two-bit saturating counter
 reg  [1: 0]               prediction_table[ENTRY_NUM - 1 : 0];
 
-assign we = is_cond_branch & ~|addr_hit_EXE;
+assign we = ~stall_i & is_cond_branch_i & ~|addr_hit_EXE; // CY Hsiang 0220_2020 15:50
 
 genvar i;
 generate
     for (i = 0; i < ENTRY_NUM; i = i + 1)
     begin
-        assign addr_hit_IF[i] = (cond_branch_pc_table[i] == pc_IF);
-        assign addr_hit_EXE[i] = (cond_branch_pc_table[i] == pc_EXE);
+        assign addr_hit_IF[i] = (cond_branch_pc_table[i] == pc_IF_i);
+        assign addr_hit_EXE[i] = (cond_branch_pc_table[i] == pc_EXE_i);
     end
 endgenerate
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         write_addr <= 0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
         write_addr <= write_addr;
     end
@@ -207,32 +206,32 @@ begin
 end
 
 integer idx;
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         for (idx = 0; idx < ENTRY_NUM; idx = idx + 1)
             cond_branch_pc_table[idx] <= 0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
         for (idx = 0; idx < ENTRY_NUM; idx = idx + 1)
             cond_branch_pc_table[idx] <= cond_branch_pc_table[idx];
     end
     else if (we)
     begin
-        cond_branch_pc_table[write_addr] <= pc_EXE;
+        cond_branch_pc_table[write_addr] <= pc_EXE_i;
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         for (idx = 0; idx < ENTRY_NUM; idx = idx + 1)
             prediction_table[idx] <= 2'b0;
     end
-    else if (stall)
+    else if (stall_i)
     begin
         for (idx = 0; idx < ENTRY_NUM; idx = idx + 1)
             prediction_table[idx] <= prediction_table[idx];
@@ -241,28 +240,28 @@ begin
     begin
         if (we)
         begin
-            prediction_table[write_addr] <= {branch_taken, branch_taken};
+            prediction_table[write_addr] <= {branch_taken_i, branch_taken_i};
         end
-        else if (cond_branch_misprediction)
+        else if (cond_branch_misprediction_i)
         begin
             case (prediction_table[update_addr])
                 2'b00:  // strongly not taken
-                    if (branch_taken)
+                    if (branch_taken_i)
                         prediction_table[update_addr] <= 2'b01;
                     else
                         prediction_table[update_addr] <= 2'b00;
                 2'b01:  // weakly not taken
-                    if (branch_taken)
+                    if (branch_taken_i)
                         prediction_table[update_addr] <= 2'b11;
                     else
                         prediction_table[update_addr] <= 2'b00;
                 2'b10:  // weakly taken
-                    if (branch_taken)
+                    if (branch_taken_i)
                         prediction_table[update_addr] <= 2'b11;
                     else
                         prediction_table[update_addr] <= 2'b00;
                 2'b11:  // strongly taken
-                    if (branch_taken)
+                    if (branch_taken_i)
                         prediction_table[update_addr] <= 2'b11;
                     else
                         prediction_table[update_addr] <= 2'b10;
@@ -276,19 +275,19 @@ end
 //
 distri_ram #(.ENTRY_NUM(ENTRY_NUM), .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH))
            BPU_distri_ram_0(
-               .clk(clk),
-               .we(we),
-               .write_addr(write_addr),
-               .read_addr(read_addr),
-               .branch_target_addr(branch_target_addr),
-               .data_o(data_o)
+               .clk_i(clk_i),
+               .we_i(we),
+               .write_addr_i(write_addr),
+               .read_addr_i(read_addr),
+               .branch_target_addr_i(branch_target_addr_i),
+               .data_o(data_out)
            );
 
 // ===========================================================================
 //  Outputs signals
 //
-assign cond_branch_hit = ( | addr_hit_IF) & ( | pc_IF);
-assign cond_branch_result = ( | prediction_table[read_addr][1]);
-assign cond_branch_target_addr = {32{( | addr_hit_IF)}} & data_o;
+assign cond_branch_hit_o = ( | addr_hit_IF) & ( | pc_IF_i);
+assign cond_branch_result_o = ( | prediction_table[read_addr][1]);
+assign cond_branch_target_addr_o = {32{( | addr_hit_IF)}} & data_out;
 
 endmodule   // bpu

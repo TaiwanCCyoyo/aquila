@@ -56,11 +56,11 @@
 
 module alu #(parameter DATA_WIDTH = 32)
 (
-    input  [DATA_WIDTH-1 : 0] a,
-    input  [DATA_WIDTH-1 : 0] b,             // shift amount
-    input  [ 2 : 0]           operation_sel,
-    input                     shift_sel,     // arith. or logical shift
-    output [DATA_WIDTH-1 : 0] alu_result
+    input  [DATA_WIDTH-1 : 0] a_i,
+    input  [DATA_WIDTH-1 : 0] b_i,             // shift amount
+    input  [ 2 : 0]           operation_sel_i,
+    input                     shift_sel_i,     // arith. or logical shift
+    output [DATA_WIDTH-1 : 0] alu_result_o
 );
 
 wire [DATA_WIDTH-1 : 0] ones;
@@ -71,25 +71,25 @@ wire [DATA_WIDTH-1 : 0] result_xor, result_sr, result_or, result_and;
 wire operation_add, operation_sll, operation_slt, operation_sltu;
 wire operation_xor, operation_sr, operation_or, operation_and;
 
-assign result_add = a + b;                                    // add
-assign result_sll = a << b[4:0];                              // sll
-assign result_slt = ($signed(a) < $signed(b)) ? 1 : 0;        // slt
-assign result_sltu = (a < b) ? 1 : 0;                         // sltu
-assign result_xor = a ^ b;                                    // xor
-assign result_sr = shift_sel? ($signed(a) >>> b[4:0]) : ($signed(a) >> b[4:0]); // sra, srl
-assign result_or = a | b;                                     // or
-assign result_and = a & b;                                    // and
+assign result_add = a_i + b_i;                                    // add
+assign result_sll = a_i << b_i[4:0];                              // sll
+assign result_slt = ($signed(a_i) < $signed(b_i)) ? 1 : 0;        // slt
+assign result_sltu = (a_i < b_i) ? 1 : 0;                         // sltu
+assign result_xor = a_i ^ b_i;                                    // xor
+assign result_sr = shift_sel_i? ($signed(a_i) >>> b_i[4:0]) : (a_i >> b_i[4:0]); // sra, srl
+assign result_or = a_i | b_i;                                     // or
+assign result_and = a_i & b_i;                                    // and
 
-assign operation_add  = (operation_sel == 3'b000);
-assign operation_sll  = (operation_sel == 3'b001);
-assign operation_slt  = (operation_sel == 3'b010);
-assign operation_sltu = (operation_sel == 3'b011);
-assign operation_xor  = (operation_sel == 3'b100);
-assign operation_sr   = (operation_sel == 3'b101);
-assign operation_or   = (operation_sel == 3'b110);
-assign operation_and  = (operation_sel == 3'b111);
+assign operation_add  = (operation_sel_i == 3'b000);
+assign operation_sll  = (operation_sel_i == 3'b001);
+assign operation_slt  = (operation_sel_i == 3'b010);
+assign operation_sltu = (operation_sel_i == 3'b011);
+assign operation_xor  = (operation_sel_i == 3'b100);
+assign operation_sr   = (operation_sel_i == 3'b101);
+assign operation_or   = (operation_sel_i == 3'b110);
+assign operation_and  = (operation_sel_i == 3'b111);
 
-assign alu_result =
+assign alu_result_o =
        (    {DATA_WIDTH{operation_add }} & result_add  )
        | (  {DATA_WIDTH{operation_sll }} & result_sll  )
        | (  {DATA_WIDTH{operation_slt }} & result_slt  )

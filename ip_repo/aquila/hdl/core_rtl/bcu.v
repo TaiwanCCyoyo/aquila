@@ -55,30 +55,30 @@
 
 module bcu#(parameter DATA_WIDTH = 32)
 (
-    input    [DATA_WIDTH-1 : 0] a,
-    input    [DATA_WIDTH-1 : 0] b,
-    input    [ 2 : 0]           operation_sel,
-    output                      compare_result
+    input  [DATA_WIDTH-1 : 0] a_i,
+    input  [DATA_WIDTH-1 : 0] b_i,
+    input  [2 : 0]            operation_sel_i,
+    output                    compare_result_o
 );
 
-wire signed [DATA_WIDTH-1 : 0] signed_a = a;
-wire signed [DATA_WIDTH-1 : 0] signed_b = b;
+wire signed [DATA_WIDTH-1 : 0] signed_a = a_i;
+wire signed [DATA_WIDTH-1 : 0] signed_b = b_i;
 
-wire result_beq = (a == b) ? 1 : 0;
-wire result_bne = (a != b) ? 1 : 0;
-wire result_blt = (signed_a < signed_b) ? 1 : 0;
-wire result_bge = (signed_a >= signed_b) ? 1 : 0;
-wire result_bltu = (a < b) ? 1 : 0;
-wire result_bgeu = (a >= b) ? 1 : 0;
+wire result_beq  = (a_i == b_i) ? 1 : 0;
+wire result_bne  = (a_i != b_i) ? 1 : 0;
+wire result_blt  = (signed_a < signed_b) ? 1 : 0;
+wire result_bge  = (signed_a >= signed_b) ? 1 : 0;
+wire result_bltu = (a_i < b_i) ? 1 : 0;
+wire result_bgeu = (a_i >= b_i) ? 1 : 0;
 
-wire operation_beq = (operation_sel == 3'b000);
-wire operation_bne = (operation_sel == 3'b001);
-wire operation_blt = (operation_sel == 3'b100);
-wire operation_bge = (operation_sel == 3'b101);
-wire operation_bltu = (operation_sel == 3'b110);
-wire operation_bgeu = (operation_sel == 3'b111);
+wire operation_beq = (operation_sel_i == 3'b000);
+wire operation_bne = (operation_sel_i == 3'b001);
+wire operation_blt = (operation_sel_i == 3'b100);
+wire operation_bge = (operation_sel_i == 3'b101);
+wire operation_bltu = (operation_sel_i == 3'b110);
+wire operation_bgeu = (operation_sel_i == 3'b111);
 
-assign compare_result =
+assign compare_result_o =
        (operation_beq & result_beq )
        | (operation_bne & result_bne )
        | (operation_blt & result_blt )
@@ -86,4 +86,4 @@ assign compare_result =
        | (operation_bltu & result_bltu)
        | (operation_bgeu & result_bgeu);
 
-endmodule   // bcu
+endmodule // bcu

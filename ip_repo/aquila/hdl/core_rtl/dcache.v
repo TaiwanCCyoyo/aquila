@@ -63,24 +63,24 @@ module dcache
 #(parameter ADDR_WIDTH = 32, DATA_WIDTH = 32, CACHE_SIZE = 64, LINE_SIZE = 256)
 (
     /////////// System signals   ///////////////////////////////////////////////
-    input                           clk, rst,
+    input                           clk_i, rst_i,
 
     /////////// processor        ///////////////////////////////////////////////
-    input                           p_strobe,      // Processor send a request.
-    input                           p_rw,          // 0 for read, 1 for write.
-    input  [DATA_WIDTH/8-1 : 0]     p_byte_enable, // Byte-enable signal.
-    input  [ADDR_WIDTH-1 : 0]       p_addr,        // Memory addr for the request.
-    output reg [DATA_WIDTH-1 : 0]   p_dout_o,      // Data from main memory.
-    input  [DATA_WIDTH-1 : 0]       p_din,         // Data to main memory.
-    output reg                      p_ready_o,     // The cache data is ready.
+    input                           p_req_i,      // Processor send a request.
+    input                           p_rw_i,          // 0 for read, 1 for write.
+    input  [DATA_WIDTH/8-1 : 0]     p_byte_enable_i, // Byte-enable signal.
+    input  [ADDR_WIDTH-1 : 0]       p_addr_i,        // Memory addr for the request.
+    output reg [DATA_WIDTH-1 : 0]   p_data_o,        // Data from main memory.
+    input  [DATA_WIDTH-1 : 0]       p_data_i,        // Data to main memory.
+    output reg                      p_ready_o,       // The cache data is ready.
 
     /////////// memory           ///////////////////////////////////////////////
-    output reg [ADDR_WIDTH-1 : 0]   m_addr_o,      // Cache addr to memory.
-    input  [LINE_SIZE-1 : 0]        m_dout,        // Data from memory.
-    output reg [LINE_SIZE-1 : 0]    m_din_o,       // Cache to memory data.
-    output reg                      m_strobe_o,    // cache request flag.
-    output reg                      m_rw_o,        // 0 for read, 1 for write.
-    input                           m_ready        // Data from memory is ready.
+    output reg [ADDR_WIDTH-1 : 0]   m_addr_o,        // Cache addr to memory.
+    input  [LINE_SIZE-1 : 0]        m_data_i,        // Data from memory.
+    output reg [LINE_SIZE-1 : 0]    m_data_o,        // Cache to memory data.
+    output reg                      m_strobe_o,      // cache request flag.
+    output reg                      m_rw_o,          // 0 for read, 1 for write.
+    input                           m_ready_i        // Data from memory is ready.
 );
 
 // Parameter        ////////////////////////////////////////////////////////////
@@ -133,13 +133,13 @@ reg [WAY_BITS-1 : 0] victim_sel;
 reg VALID_ [0 : N_LINES-1][0 : N_WAYS-1];
 reg DIRTY_ [0 : N_LINES-1][0 : N_WAYS-1];
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
     if (S == Idle)
     begin
-        datain_from_p <= p_din;
-        rw <= p_rw;
-        byte_enable_from_p <= p_byte_enable;
+        datain_from_p <= p_data_i;
+        rw <= p_rw_i;
+        byte_enable_from_p <= p_byte_enable_i;
     end
     else
     begin
@@ -152,10 +152,10 @@ end
 // Input registers from memory /////////////////////////////////////////////////
 reg [LINE_SIZE-1 : 0] m_data;
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
     if (S == RdfromMem)
-        m_data <= m_dout;
+        m_data <= m_data_i;
     else
         m_data <= m_data;
 end
@@ -165,16 +165,16 @@ wire [WORD_BITS-1 : 0] line_offset;
 wire [LINE_BITS-1 : 0] line_index;
 wire [TAG_BITS-1  : 0] tag;
 
-assign line_offset = p_addr[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS];
-assign line_index  = p_addr[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS];
-assign tag         = p_addr[ADDR_WIDTH - 1 : NONTAG_BITS];
+assign line_offset = p_addr_i[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS];
+assign line_index  = p_addr_i[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS];
+assign tag         = p_addr_i[ADDR_WIDTH - 1 : NONTAG_BITS];
 
 //====================================================
 // D-cache Finite State Machine
 //====================================================
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         S <= Idle;
     else
         S <= S_nxt;
@@ -184,7 +184,7 @@ always @(*)
 begin
     case (S)
         Idle:
-            if (p_strobe)
+            if (p_req_i)
                 S_nxt = Analysis;
             else
                 S_nxt = Idle;
@@ -194,14 +194,14 @@ begin
             else
                 S_nxt = Idle;   // cache hit
         WbtoMem:
-            if (m_ready)
+            if (m_ready_i)
                 S_nxt = WbtoMemFinish;
             else
                 S_nxt = WbtoMem;
         WbtoMemFinish:
             S_nxt = RdfromMem;
         RdfromMem:
-            if (m_ready)
+            if (m_ready_i)
                 S_nxt = RdfromMemFinish;
             else
                 S_nxt = RdfromMem;
@@ -229,7 +229,7 @@ begin
     endcase
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
     if ( ((S == Analysis) && cache_hit && rw) )
     begin
@@ -251,16 +251,16 @@ begin
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
     victim_sel <= FIFO_cnt[line_index];
 end
 
 integer idx, jdx;
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         for (idx = 0; idx < N_LINES; idx = idx + 1)
             FIFO_cnt[idx] <= 0;
     else if (S == RdfromMemFinish)
@@ -342,7 +342,7 @@ end
 // Plz modify here to write the correct 32-bit data
 //------------------------------------------------------------------------
 /* 256 bits data for writing in cache from processor write or memory */
-always @(posedge clk)
+always @(posedge clk_i)
 begin
     if (!rw) // Processor read miss and update cache data
         c_data_i <= (S == RdfromMemFinish) ? m_data : 0;
@@ -372,21 +372,21 @@ begin
 end
 
 // Output signals       ////////////////////////////////////////////////////////
-always @(posedge clk)
+always @(posedge clk_i)
 begin // Note: p_dout_o is significant when processor read data
-    if (rst)
-        p_dout_o <= 0;
+    if (rst_i)
+        p_data_o <= 0;
     else if ( (S == Analysis) && cache_hit && !rw)
-        p_dout_o <= fromCache;
+        p_data_o <= fromCache;
     else if ( (S == RdfromMemFinish) && !rw)
-        p_dout_o <= fromMem;
+        p_data_o <= fromMem;
     else
-        p_dout_o <= 0;
+        p_data_o <= 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         p_ready_o <= 0;
     else if ( ((S == Analysis) && cache_hit) || S == RdfromMemFinish)
         p_ready_o <= 1;
@@ -394,41 +394,41 @@ begin
         p_ready_o <= 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         m_strobe_o <= 0;
-    else if ( (S == RdfromMem || S == WbtoMem) && !m_ready )
+    else if ( (S == RdfromMem || S == WbtoMem) && !m_ready_i )
         m_strobe_o <= 1;
     else
         m_strobe_o <= 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         m_addr_o <= 0;
     else if (S == WbtoMem) // the dirty data addr
         m_addr_o <= {c_tag_o[victim_sel], line_index, 3'b0, 2'b0};
     else if (S == RdfromMem) // the miss data addr
-        m_addr_o <= {p_addr[ADDR_WIDTH-1: 5], 3'b0, 2'b0};
+        m_addr_o <= {p_addr_i[ADDR_WIDTH-1: 5], 3'b0, 2'b0};
     else
         m_addr_o <= 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
-        m_din_o <= 0;
+    if (rst_i)
+        m_data_o <= 0;
     else if (S == WbtoMem) // the dirty data write back to memory
-        m_din_o <= c_data_o[victim_sel];
+        m_data_o <= c_data_o[victim_sel];
     else
-        m_din_o <= 0;
+        m_data_o <= 0;
 end
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         m_rw_o <= 0;
     else if (S == WbtoMem)
         m_rw_o <= 1;
@@ -438,24 +438,24 @@ end
 
 // Storage /////////////////////////////////////////////////////////////////////
 /* valid  */
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         for (idx = 0; idx < N_WAYS; idx = idx + 1)
             for (jdx = 0; jdx < N_LINES; jdx = jdx + 1)
                 VALID_[jdx][idx] <= 1'b0;
-    else if (S == RdfromMem && m_ready)
+    else if (S == RdfromMem && m_ready_i)
         VALID_[line_index][victim_sel] <= 1'b1;
 end
 
 /* dirty */
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
         for (idx = 0; idx < N_WAYS; idx = idx + 1)
             for (jdx = 0; jdx < N_LINES; jdx = jdx + 1)
                 DIRTY_[jdx][idx] <= 1'b0;
-    else if (S == RdfromMem && m_ready && rw)
+    else if (S == RdfromMem && m_ready_i && rw)
         DIRTY_[line_index][victim_sel] <= 1'b1;
     else if (S == Analysis && cache_hit && rw)
     begin
@@ -476,20 +476,20 @@ generate
         //------------------------------------------------------------------
         sram #(.DATA_WIDTH(TAG_BITS), .N_ENTRIES(N_LINES))
              TAG_BRAM(
-                 .clk(clk),
-                 .en(1'b1),
-                 .we(cache_write[i]),
-                 .addr(line_index),
+                 .clk_i(clk_i),
+                 .en_i(1'b1),
+                 .we_i(cache_write[i]),
+                 .addr_i(line_index),
                  .data_i(tag),
                  .data_o(c_tag_o[i])
              );
         //------------------------------------------------------------------
         sram #(.DATA_WIDTH(LINE_SIZE), .N_ENTRIES(N_LINES))
              DATA_BRAM(
-                 .clk(clk),
-                 .en(1'b1),
-                 .we(cache_write[i]),
-                 .addr(line_index),
+                 .clk_i(clk_i),
+                 .en_i(1'b1),
+                 .we_i(cache_write[i]),
+                 .addr_i(line_index),
                  .data_i(c_data_i),  // data from processor write or memory
                  .data_o(c_data_o[i])
              );

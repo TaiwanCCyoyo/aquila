@@ -55,45 +55,45 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
 
-module program_counter#(parameter ADDR_WIDTH = 32, parameter DATA_WIDTH = 32)
+module program_counter #( parameter ADDR_WIDTH = 32, DATA_WIDTH = 32 )
 (
     // System signals
-    input                     clk,
-    input                     rst,
+    input                     clk_i,
+    input                     rst_i,
 
     // Program counter address at reset
-    input  [ADDR_WIDTH-1 : 0] init_pc_addr,
+    input  [ADDR_WIDTH-1 : 0] init_pc_addr_i,
 
     // Interrupt
-    input                     irq_taken,
-    input  [ADDR_WIDTH-1 : 0] PC_handler,
+    input                     irq_taken_i,
+    input  [ADDR_WIDTH-1 : 0] PC_handler_i,
 
     // that stall Program_Counter
-    input                     stall,
+    input                     stall_i,
 
     // from Cond_Branch_Predictor
-    input                     cond_branch_hit_IF,
-    input                     cond_branch_result_IF,
-    input  [ADDR_WIDTH-1 : 0] cond_branch_target_addr,
+    input                     cond_branch_hit_IF_i,
+    input                     cond_branch_result_IF_i,
+    input  [ADDR_WIDTH-1 : 0] cond_branch_target_addr_i,
 
     // from Uncond_Branch_Predictor
-    input                     uncond_branch_hit_IF,
-    input  [ADDR_WIDTH-1 : 0] uncond_branch_target_addr,
+    input                     uncond_branch_hit_IF_i,
+    input  [ADDR_WIDTH-1 : 0] uncond_branch_target_addr_i,
 
     // System Jump operation
-    input                     sys_jump,
-    input  [ADDR_WIDTH-1 : 0] sys_jump_csr_data,
+    input                     sys_jump_i,
+    input  [ADDR_WIDTH-1 : 0] sys_jump_csr_data_i,
 
     // from Decode_Execute_Pipeline
-    input                     cond_branch_hit_EXE,
-    input                     cond_branch_result_EXE,
-    input                     uncond_branch_hit_EXE,
+    input                     cond_branch_hit_EXE_i,
+    input                     cond_branch_result_EXE_i,
+    input                     uncond_branch_hit_EXE_i,
 
     // from Execute
-    input                     cond_branch_misprediction,
-    input                     branch_taken,
-    input  [ADDR_WIDTH-1 : 0] branch_target_addr,
-    input  [ADDR_WIDTH-1 : 0] branch_restore_addr,  // already increment 4 in execute
+    input                     cond_branch_misprediction_i,
+    input                     branch_taken_i,
+    input  [ADDR_WIDTH-1 : 0] branch_target_addr_i,
+    input  [ADDR_WIDTH-1 : 0] branch_restore_addr_i,  // already increment 4 in execute
 
     // to i-cache
     output [ADDR_WIDTH-1 : 0] pc_o
@@ -111,36 +111,36 @@ wire [ADDR_WIDTH-1 : 0] pc_increment;
 
 assign pc_increment = pc_r + pc_offset;
 
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
-        pc_r <= init_pc_addr;
-    else if (irq_taken)
-        pc_r <= PC_handler;
-    else if (stall)
+    if (rst_i)
+        pc_r <= init_pc_addr_i;
+    else if (irq_taken_i)
+        pc_r <= PC_handler_i;
+    else if (stall_i)
         pc_r <= pc_r;
     else
         // with branch predictor
-        if (branch_taken & !uncond_branch_hit_EXE & !cond_branch_hit_EXE)
-            pc_r <= branch_target_addr;
-        else if (cond_branch_misprediction)
-            pc_r <= cond_branch_result_EXE ? branch_restore_addr : branch_target_addr;
-        else if (sys_jump)
-            pc_r <= sys_jump_csr_data;
-        else if (uncond_branch_hit_IF)
-            pc_r <= uncond_branch_target_addr;
-        else if (cond_branch_hit_IF & cond_branch_result_IF)
-            pc_r <= cond_branch_target_addr;
+        if (branch_taken_i & !uncond_branch_hit_EXE_i & !cond_branch_hit_EXE_i)
+            pc_r <= branch_target_addr_i;
+        else if (cond_branch_misprediction_i)
+            pc_r <= cond_branch_result_EXE_i ? branch_restore_addr_i : branch_target_addr_i;
+        else if (sys_jump_i)
+            pc_r <= sys_jump_csr_data_i;
+        else if (uncond_branch_hit_IF_i)
+            pc_r <= uncond_branch_target_addr_i;
+        else if (cond_branch_hit_IF_i & cond_branch_result_IF_i)
+            pc_r <= cond_branch_target_addr_i;
         else
             pc_r <= pc_increment;
+/*
+    Supposedly, we can use the following code segment to replace the previous 
+    else cases to disable branch-prediction. However, it did not work.
 
-
-    /*
-    // without branch predictor
-    if(branch_taken) pc_r <= branch_target_addr;
-    else if(sys_jump) pc_r <= sys_jump_csr_data;
+    if (branch_taken) pc_r <= branch_target_addr;
+    else if (sys_jump) pc_r <= sys_jump_csr_data;
     else pc_r <= pc_increment;
-    */
+*/
 end
 
 // ================================================================================

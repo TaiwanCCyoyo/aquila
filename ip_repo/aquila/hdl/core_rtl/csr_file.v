@@ -59,35 +59,34 @@
 
 module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
 (
-    // External Signal
-    input                     clk,
-    input                     rst,
+    input                     clk_i,
+    input                     rst_i,
 
     // from Decode_Eexcute_Pipeline
-    input                     is_csr_instr,
-    input [11: 0]             csr_addr,
-    input [2: 0]              csr_op,
-    input [4: 0]              csr_imm,
+    input                     is_csr_instr_i,
+    input [11: 0]             csr_addr_i,
+    input [2: 0]              csr_op_i,
+    input [4: 0]              csr_imm_i,
 
     // from RegisterFile
-    input [DATA_WIDTH-1 : 0]  rs1_data,
+    input [DATA_WIDTH-1 : 0]  rs1_data_i,
 
-    // interrupt requests
-    input                     ext_irq,
-    input                     tmr_irq,
-    input                     sft_irq,
-    output                    irq_taken,
-    output [ADDR_WIDTH-1 : 0] PC_handler,
-    input  [ADDR_WIDTH-1 : 0] nxt_unexec_PC,
+    // Interrupt requests.
+    input                     ext_irq_i,
+    input                     tmr_irq_i,
+    input                     sft_irq_i,
+    output                    irq_taken_o,
+    output [ADDR_WIDTH-1 : 0] PC_handler_o,
+    input  [ADDR_WIDTH-1 : 0] nxt_unexec_PC_i,
 
     // to Execute_Memory_Pipeline
     output [DATA_WIDTH-1 : 0] csr_data_o,
 
     // System Jump operation
-    input                     sys_jump,
-    input  [11: 0]            sys_jump_csr_addr,
-    input  [ADDR_WIDTH-1 : 0] sys_jump_pc,
-    output [DATA_WIDTH-1 : 0] sys_jump_csr_data
+    input                     sys_jump_i,
+    input  [11: 0]            sys_jump_csr_addr_i,
+    input  [ADDR_WIDTH-1 : 0] sys_jump_pc_i,
+    output [DATA_WIDTH-1 : 0] sys_jump_csr_data_o
 );
 
 // =============================================================================================
@@ -165,12 +164,12 @@ wire [DATA_WIDTH-1 : 0] marchid   = 0;
 wire [DATA_WIDTH-1 : 0] mimpid    = 0;
 wire [DATA_WIDTH-1 : 0] mhartid   = HART_ID;
 
-wire is_mret = (sys_jump_csr_addr == `CSR_MEPC);
-wire is_ecall = (sys_jump_csr_addr == `CSR_MTVEC);
+wire is_mret = (sys_jump_csr_addr_i == `CSR_MEPC);
+wire is_ecall = (sys_jump_csr_addr_i == `CSR_MTVEC);
 
 reg  [DATA_WIDTH-1 : 0] csr_data;
 wire [DATA_WIDTH-1 : 0] csr_inputA = csr_data;
-wire [DATA_WIDTH-1 : 0] csr_inputB = csr_op[2] ? {27'b0, csr_imm} : rs1_data;
+wire [DATA_WIDTH-1 : 0] csr_inputB = csr_op_i[2] ? {27'b0, csr_imm_i} : rs1_data_i;
 reg  [DATA_WIDTH-1 : 0] updated_csr_data;
 
 assign mstatus[31] = 1'b0;              // SD
@@ -207,10 +206,10 @@ assign mie[0]   = 1'b0;                 // USIE
 assign irq_cause[31] = 1'b1;
 assign irq_cause[30: 4] = 27'b0;
 assign irq_cause[3: 0]  =
-       (ext_irq & mie_meie_r) ? 4'd11 :
-       (tmr_irq & mie_mtie_r) ? 4'd7  :
-       (sft_irq & mie_msie_r) ? 4'd3  :
-                                4'b0  ;
+       (ext_irq_i & mie_meie_r) ? 4'd11 :
+       (tmr_irq_i & mie_mtie_r) ? 4'd7  :
+       (sft_irq_i & mie_msie_r) ? 4'd3  :
+                                  4'b0  ;
 
 assign mip[DATA_WIDTH-1 : 12]  = 20'b0;        // Reserved
 assign mip[11]  = mip_meip_r;       // MEIP
@@ -226,31 +225,31 @@ assign mip[2]   = 1'b0;             // Reserved
 assign mip[1]   = 1'b0;             // SSIP
 assign mip[0]   = 1'b0;             // USIP
 
-assign mirq = (ext_irq & mie_meie_r) | (tmr_irq & mie_mtie_r) | (sft_irq & mie_msie_r) ;
+assign mirq = (ext_irq_i & mie_meie_r) | (tmr_irq_i & mie_mtie_r) | (sft_irq_i & mie_msie_r);
 
 // =============================================================================================
 //  SYSTEM Operations
 //
 
 // mstatus
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mstatus_mpie_r <= 1'b0;
         mstatus_mie_r <= 1'b1; // for demo, it should be 0
     end
-    else if (irq_taken)
+    else if (irq_taken_o)
     begin
         mstatus_mpie_r <= mstatus_mie_r;
         mstatus_mie_r <= 1'b0;
     end
-    else if (sys_jump & is_mret)
+    else if (sys_jump_i & is_mret)
     begin
         mstatus_mie_r <= mstatus_mpie_r;
         mstatus_mpie_r <= 1'b1;
     end
-    else if (is_csr_instr && csr_addr == `CSR_MSTATUS)
+    else if (is_csr_instr_i && csr_addr_i == `CSR_MSTATUS)
     begin
         mstatus_mie_r <= updated_csr_data[3];
         mstatus_mpie_r <= updated_csr_data[7];
@@ -258,15 +257,15 @@ begin
 end
 
 // mie
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mie_meie_r <= 1'b0;
         mie_mtie_r <= 1'b0;
         mie_msie_r <= 1'b0;
     end
-    else if (is_csr_instr && csr_addr == `CSR_MIE)
+    else if (is_csr_instr_i && csr_addr_i == `CSR_MIE)
     begin
         mie_meie_r <= updated_csr_data[11];
         mie_mtie_r <= updated_csr_data[7];
@@ -275,64 +274,64 @@ begin
 end
 
 // mtvec
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mtvec_r <= 32'h0; // the entry point of timer ISR
     end
-    else if (is_csr_instr && csr_addr == `CSR_MTVEC)
+    else if (is_csr_instr_i && csr_addr_i == `CSR_MTVEC)
     begin
         mtvec_r <= updated_csr_data;
     end
 end
 
 // mscratch
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mscratch_r <= 32'b0;
     end
-    else if (is_csr_instr && csr_addr == `CSR_MSCRATCH)
+    else if (is_csr_instr_i && csr_addr_i == `CSR_MSCRATCH)
     begin
         mscratch_r <= updated_csr_data;
     end
 end
 
 // mepc
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mepc_r <= 32'b0;
     end
-    else if (irq_taken)
+    else if (irq_taken_o)
     begin
-        mepc_r <= nxt_unexec_PC;
+        mepc_r <= nxt_unexec_PC_i;
     end
-    else if (sys_jump & is_ecall)
+    else if (sys_jump_i & is_ecall)
     begin
-        mepc_r <= sys_jump_pc;
+        mepc_r <= sys_jump_pc_i;
     end
-    else if (is_csr_instr && csr_addr == `CSR_MEPC)
+    else if (is_csr_instr_i && csr_addr_i == `CSR_MEPC)
     begin
         mepc_r <= updated_csr_data;
     end
 end
 
 // mcause
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mcause_r <= 32'b0;
     end
-    else if (irq_taken)
+    else if (irq_taken_o)
     begin
         mcause_r <= irq_cause;
     end
-    else if (is_csr_instr && csr_addr == `CSR_MCAUSE)
+    else if (is_csr_instr_i && csr_addr_i == `CSR_MCAUSE)
     begin
         mcause_r <= updated_csr_data;
     end
@@ -341,9 +340,9 @@ end
 // TODO: mtval for exception handling
 
 // mip : read-only
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mip_meip_r <= 1'b0;
         mip_mtip_r <= 1'b0;
@@ -351,22 +350,22 @@ begin
     end
     else
     begin
-        mip_meip_r <= ext_irq;
-        mip_mtip_r <= tmr_irq;
-        mip_msip_r <= sft_irq;
+        mip_meip_r <= ext_irq_i;
+        mip_mtip_r <= tmr_irq_i;
+        mip_msip_r <= sft_irq_i;
     end
 end
 
 // mcycle, mcycleh
-always @(posedge clk)
+always @(posedge clk_i)
 begin
-    if (rst)
+    if (rst_i)
     begin
         mcycle_r    <= 64'b0;
     end
-    else if (is_csr_instr)
+    else if (is_csr_instr_i)
     begin
-        case (csr_addr)
+        case (csr_addr_i)
             `CSR_MCYCLE :
                 mcycle_r[31 : 0] <= updated_csr_data;
             `CSR_MCYCLEH :
@@ -391,7 +390,7 @@ end
 
 always @( * )
 begin
-    case (csr_addr)
+    case (csr_addr_i)
         `CSR_MSTATUS:
             csr_data = mstatus;
         `CSR_MIE:
@@ -442,7 +441,7 @@ end
 
 always @( * )
 begin
-    case (csr_op[1: 0])
+    case (csr_op_i[1: 0])
         `CSR_RW:
             updated_csr_data = csr_inputB;
         `CSR_RS:
@@ -459,16 +458,16 @@ end
 //  Output signals interface
 //
 assign csr_data_o = csr_data;
-assign sys_jump_csr_data = is_mret ? mepc_r :
+assign sys_jump_csr_data_o = is_mret ? mepc_r :
        is_ecall ? mtvec_base :
        32'b0;
 
-assign irq_taken = (mstatus_mie_r & mirq);
+assign irq_taken_o = (mstatus_mie_r & mirq);
 // ------------------
 // mtvec[1:0] == 0 : MODE 0, set PC to BASE
 // mtvec[1:0] == 1 : MODE 1, set PC to BASE + 4*casue
 // mtvec[1:0] >= 2 : Reserved
-assign PC_handler = (mtvec_mode == 2'b00) ? mtvec_base
+assign PC_handler_o = (mtvec_mode == 2'b00) ? mtvec_base
        : mtvec_base + (excp_code << 2);
 
 endmodule   // csr_file
