@@ -77,9 +77,13 @@ module sram_dp
 
 reg [DATA_WIDTH-1 : 0] RAM [N_ENTRIES-1 : 0];
 
+wire [31:0] temp2  = RAM[2];
+wire [31:0] temp3  = RAM[3];
+wire [31:0] temp10 = RAM[10];
+
 initial
 begin
-    $readmemh("/home/twccyoyo/riscv/Daicjou_2/aquila/ip_repo/aquila/hdl/mem/test.mem", RAM);
+    $readmemh("/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem", RAM);
 end
 
 // ------------------------------------

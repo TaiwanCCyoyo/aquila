@@ -86,36 +86,72 @@ module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
     input                     sys_jump_i,
     input  [11: 0]            sys_jump_csr_addr_i,
     input  [ADDR_WIDTH-1 : 0] sys_jump_pc_i,
-    output [DATA_WIDTH-1 : 0] sys_jump_csr_data_o
+    output [DATA_WIDTH-1 : 0] sys_jump_csr_data_o,
+
+    //MMU
+    output mmu_enable_o,
+    output [21: 0] root_ppn_o,
+    output [ 8: 0] asid_o,
+    output [ 1: 0] privilege_lvl_o,
+
+    // Exception requests
+    input wire                    exception_vld_i,
+    input wire [ 3: 0]            exception_cause_i
 );
+
+//==============================================================================================
+// Parameter and Integer
+//==============================================================================================
 
 // =============================================================================================
 //  Machine-level CSRs (v1.10)
 //          CSR Name        Address         R/W Attribute       Full Name
-`define     CSR_MSTATUS     12'h300         // RW               Machine Status Register
-`define     CSR_MISA        12'h301         // RW               Machine ISA Register
-`define     CSR_MEDELEG     12'h302         // RW               Machine Exception Delegation Register
-`define     CSR_MIDELEG     12'h303         // RW               Machine Interrupt Delegation Register
-`define     CSR_MIE         12'h304         // RW               Machine Interrupt Enable Register
-`define     CSR_MTVEC       12'h305         // RW               Machine Trap-Vector Base-Address Register
-`define     CSR_MCOUNTEREN  12'h306         // RW               Machine Counter Enable
+`define     CSR_MSTATUS     12'h300         // MRW              Machine Status Register
+`define     CSR_MISA        12'h301         // MRW              Machine ISA Register
+`define     CSR_MEDELEG     12'h302         // MRW              Machine Exception Delegation Register
+`define     CSR_MIDELEG     12'h303         // MRW              Machine Interrupt Delegation Register
+`define     CSR_MIE         12'h304         // MRW              Machine Interrupt Enable Register
+`define     CSR_MTVEC       12'h305         // MRW              Machine Trap-Vector Base-Address Register
+`define     CSR_MCOUNTEREN  12'h306         // MRW              Machine Counter Enable
 
-`define     CSR_MSCRATCH    12'h340         // RW               Machine Scratch Register
-`define     CSR_MEPC        12'h341         // RW               Machine Exception Program Counter
-`define     CSR_MCAUSE      12'h342         // RW               Machine Cause Register
-`define     CSR_MTVAL       12'h343         // RW               Machine Trap Value Register
-`define     CSR_MIP         12'h344         // RW               Machine Interrupt Pending Register
+`define     CSR_MSCRATCH    12'h340         // MRW              Machine Scratch Register
+`define     CSR_MEPC        12'h341         // MRW              Machine Exception Program Counter
+`define     CSR_MCAUSE      12'h342         // MRW              Machine Cause Register
+`define     CSR_MTVAL       12'h343         // MRW              Machine Trap Value Register
+`define     CSR_MIP         12'h344         // MRW              Machine Interrupt Pending Register
 
-`define     CSR_MCYCLE      12'hB00         // RW               Lower 32 bits of Cycle counter
-`define     CSR_MCYCLEH     12'hB80         // RW               Upper 32 bits of Cycle counter
-`define     CSR_MINSTRET    12'hB02         // RW               Lower 32 bits of Instructions-retired counter
-`define     CSR_MINSTRETH   12'hB82         // RW               Upper 32 bits of Instructions-retired counter
+`define     CSR_MCYCLE      12'hB00         // MRW              Lower 32 bits of Cycle counter
+`define     CSR_MCYCLEH     12'hB80         // MRW              Upper 32 bits of Cycle counter
+`define     CSR_MINSTRET    12'hB02         // MRW              Lower 32 bits of Instructions-retired counter
+`define     CSR_MINSTRETH   12'hB82         // MRW              Upper 32 bits of Instructions-retired counter
 
-`define     CSR_MVENDORID   12'hF11         // RO               Machine Vendor ID Register
-`define     CSR_MARCHID     12'hF12         // RO               Machine Architecture ID Register
-`define     CSR_MIMPID      12'hF13         // RO               Machine Implementation ID Register
-`define     CSR_MHARTID     12'hF14         // RO               Hart ID Register
+`define     CSR_MVENDORID   12'hF11         // MRO              Machine Vendor ID Register
+`define     CSR_MARCHID     12'hF12         // MRO              Machine Architecture ID Register
+`define     CSR_MIMPID      12'hF13         // MRO              Machine Implementation ID Register
+`define     CSR_MHARTID     12'hF14         // MRO              Hart ID Register
 
+
+// =============================================================================================
+//  Supervisor-level CSRs (v1.11)
+//          CSR Name        Address         R/W Attribute       Full Name
+`define     CSR_SSTATUS     12'h100         // SRW              Supervisor status register
+`define     CSR_SEDELEG     12'h102         // SRW              Supervisor Exception Delegation Register
+`define     CSR_SIDELEG     12'h103         // SRW              Supervisor Interrupt Delegation Register
+`define     CSR_SIE         12'h104         // SRW              Supervisor Interrupt Enable Register
+`define     CSR_STVEC       12'h105         // SRW              Supervisor Trap-Vector Base-Address Register
+`define     CSR_SCOUNTEREN  12'h106         // SRW              Supervisor Counter Enable
+
+`define     CSR_SSCRATCH    12'h140         // SRW              Supervisor Scratch Register
+`define     CSR_SEPC        12'h141         // SRW              Supervisor Exception Program Counter
+`define     CSR_SCAUSE      12'h142         // SRW              Supervisor Cause Register
+`define     CSR_STVAL       12'h143         // SRW              Supervisor Trap Value Register
+`define     CSR_SIP         12'h144         // SRW              Supervisor Interrupt Pending Register
+
+`define     CSR_SATP        12'h180         // SRW              Supervisor address translation and protection
+
+// =============================================================================================
+//  User-level CSRs (v1.11)
+//          CSR Name        Address         R/W Attribute       Full Name
 `define     CSR_CYCLE       12'hC00         // RO               Cycle counter for RDCYCLE instruction.
 `define     CSR_TIME        12'hC01         // RO               Timer for RDTIME instruction.
 `define     CSR_INSTRET     12'hC02         // RO               Instructions-retired counter for RDINSTRET instruction.
@@ -123,48 +159,50 @@ module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
 `define     CSR_TIMEH       12'hC01         // RO               Upper 32 bits of time, RV32I only.
 `define     CSR_INSTRETH    12'hC02         // RO               Upper 32 bits of instret, RV32I only.
 
+
+
+`define CSR_RW 2'b01
+`define CSR_RS 2'b10
+`define CSR_RC 2'b11
+
+//==============================================================================================
+// Wire and Reg 
+//==============================================================================================
 // =============================================================================================
 //  CSRs implementations
 //
-wire [DATA_WIDTH-1 : 0] mstatus;
-reg                     mstatus_mpie_r;
-reg                     mstatus_mie_r;
-
+//M-Mode register
+reg  [DATA_WIDTH-1 : 0] mstatus_r;
 reg  [DATA_WIDTH-1 : 0] misa_r;
-wire [DATA_WIDTH-1 : 0] mie;
-reg                     mie_meie_r;
-reg                     mie_mtie_r;
-reg                     mie_msie_r;
-
+reg  [DATA_WIDTH-1 : 0] mie_r;
 reg  [DATA_WIDTH-1 : 0] mtvec_r;
-wire [DATA_WIDTH-1 : 0] mtvec_base = {mtvec_r[DATA_WIDTH-1 : 2], 2'b00};
-wire [ 2 : 0] mtvec_mode = mtvec_r[1: 0];
-
 reg  [DATA_WIDTH-1 : 0] mscratch_r;
 reg  [DATA_WIDTH-1 : 0] mepc_r;
-reg  [DATA_WIDTH-1 : 0] mcause_r;  // mcause_r <= irq_taken ? irq_cause : excp_taken? excp_cause : mcause_r;
-//wire [DATA_WIDTH-1 : 0] excp_cause;
-wire [DATA_WIDTH-1 : 0] irq_cause;
-
-wire [30 : 0]           excp_code = irq_cause[30: 0];
+reg  [DATA_WIDTH-1 : 0] mcause_r, mcause_d;
 //reg  [DATA_WIDTH-1 : 0] mtval_r;  // for exception
-wire [DATA_WIDTH-1 : 0] mip;
-reg                     mip_meip_r;
-reg                     mip_mtip_r;
-reg                     mip_msip_r;
-
-wire mirq;
-
-reg [63 : 0] mcycle_r;
+reg  [DATA_WIDTH-1 : 0] mip_r;
+reg  [63           : 0] mcycle_r;
 //reg  [63 : 0] minstret_r;
-//wire retired = instr_valid & !stall;
-
 wire [DATA_WIDTH-1 : 0] mvendorid = 0;  // Non-commercial implementation, so return 0
 wire [DATA_WIDTH-1 : 0] marchid   = 0;
 wire [DATA_WIDTH-1 : 0] mimpid    = 0;
 wire [DATA_WIDTH-1 : 0] mhartid   = HART_ID;
 
+//S-Mode register
+wire  [DATA_WIDTH-1 : 0] sstatus;
+reg   [DATA_WIDTH-1 : 0] satp_r;
+
+//U-Mode register
+reg  [63           : 0] cycle_r;
+
+//
+reg  [1            : 0] privilege_lvl_r;
+
+wire [DATA_WIDTH-1 : 0] mtvec_base;
+//wire retired = instr_valid & !stall;
+
 wire is_mret = (sys_jump_csr_addr_i == `CSR_MEPC);
+wire is_sret = (sys_jump_csr_addr_i == `CSR_SEPC);
 wire is_ecall = (sys_jump_csr_addr_i == `CSR_MTVEC);
 
 reg  [DATA_WIDTH-1 : 0] csr_data;
@@ -172,108 +210,80 @@ wire [DATA_WIDTH-1 : 0] csr_inputA = csr_data;
 wire [DATA_WIDTH-1 : 0] csr_inputB = csr_op_i[2] ? {27'b0, csr_imm_i} : rs1_data_i;
 reg  [DATA_WIDTH-1 : 0] updated_csr_data;
 
-assign mstatus[31] = 1'b0;              // SD
-assign mstatus[30: 23]  = 8'b0;         // Reserved
-assign mstatus[22: 17]  = 6'b0;         // TSR--MPRV
-assign mstatus[16: 15]  = 2'b0;         // XS
-assign mstatus[14: 13]  = 2'b0;         // FS
-assign mstatus[12: 11]  = 2'b11;        // MPP : We only support M-mode, so it always is 2'b11
-assign mstatus[10: 9] = 2'b0;           // Reserved
-assign mstatus[8] = 1'b0;               // SPP
-assign mstatus[7] = mstatus_mpie_r;     // MPIE
-assign mstatus[6] = 1'b0;               // Reserved
-assign mstatus[5] = 1'b0;               // SPIE
-assign mstatus[4] = 1'b0;               // UPIE
-assign mstatus[3] = mstatus_mie_r;      // MIE
-assign mstatus[2] = 1'b0;               // Reserved
-assign mstatus[1] = 1'b0;               // SIE
-assign mstatus[0] = 1'b0;               // UIE
-
-assign mie[DATA_WIDTH-1 : 12]  = 20'b0; // Reserved
-assign mie[11]  = mie_meie_r;           // MEIE
-assign mie[10]  = 1'b0;                 // Reserved
-assign mie[9]   = 1'b0;                 // SEIE
-assign mie[8]   = 1'b0;                 // UEIE
-assign mie[7]   = mie_mtie_r;           // MTIE
-assign mie[6]   = 1'b0;                 // Reserved
-assign mie[5]   = 1'b0;                 // STIE
-assign mie[4]   = 1'b0;                 // UTIE
-assign mie[3]   = mie_msie_r;           // MSIE
-assign mie[2]   = 1'b0;                 // Reserved
-assign mie[1]   = 1'b0;                 // SSIE
-assign mie[0]   = 1'b0;                 // USIE
-
-assign irq_cause[31] = 1'b1;
-assign irq_cause[30: 4] = 27'b0;
-assign irq_cause[3: 0]  =
-       (ext_irq_i & mie_meie_r) ? 4'd11 :
-       (tmr_irq_i & mie_mtie_r) ? 4'd7  :
-       (sft_irq_i & mie_msie_r) ? 4'd3  :
-                                  4'b0  ;
-
-assign mip[DATA_WIDTH-1 : 12]  = 20'b0;        // Reserved
-assign mip[11]  = mip_meip_r;       // MEIP
-assign mip[10]  = 1'b0;             // Reserved
-assign mip[9]   = 1'b0;             // SEIP
-assign mip[8]   = 1'b0;             // UEIP
-assign mip[7]   = mip_mtip_r;       // MTIP
-assign mip[6]   = 1'b0;             // Reserved
-assign mip[5]   = 1'b0;             // STIP
-assign mip[4]   = 1'b0;             // UTIP
-assign mip[3]   = mip_msip_r;       // MSIP
-assign mip[2]   = 1'b0;             // Reserved
-assign mip[1]   = 1'b0;             // SSIP
-assign mip[0]   = 1'b0;             // USIP
-
-assign mirq = (ext_irq_i & mie_meie_r) | (tmr_irq_i & mie_mtie_r) | (sft_irq_i & mie_msie_r);
+//==============================================================================================
+// User Logic                         
+//==============================================================================================
 
 // =============================================================================================
-//  SYSTEM Operations
+//  M-MODE SYSTEM Operations
 //
-
+//-----------------------------------------------
 // mstatus
+//-----------------------------------------------
+// -----------------------------------------------------------------------------------------------------------------------------------------
+// | SD |  WPRI  | TSR | TW | TVM | MXR | SUM | MPRV |  XS  |  FS  | MPP | WPRI | SPP | MPIE | WPRI | SPIE | UPIE | MIE | WPRI | SIE | UIE |
+// -----------------------------------------------------------------------------------------------------
+// | 31 |30    23| 22  | 21 | 20  | 19  | 18  |  17  |16  15|14  13|12 11|10   9|  8  |  7   |  6   |  5   |  4   |  3  |  2   |  1  |  0  |
+// -----------------------------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------
+// sstatus
+//-----------------------------------------------
+// -----------------------------------------------------------------------------------------------------
+// | SD |  WPRI  | MXR | SUM | WPRI |  XS  |  FS  | WPRI | SPP | WPRI | SPIE | UPIE | WPRI | SIE | UIE |
+// -----------------------------------------------------------------------------------------------------
+// | 31 |30    20| 19  | 18  |  17  |16  15|14  13|12   9|  8  |7    6|  5   |  4   |3    2|  1  |  0  |
+// -----------------------------------------------------------------------------------------------------
+
 always @(posedge clk_i)
 begin
     if (rst_i)
     begin
-        mstatus_mpie_r <= 1'b0;
-        mstatus_mie_r <= 1'b1; // for demo, it should be 0
+        mstatus_r <= {19'b0, 2'b11, 3'b0, 1'b1, 3'b0};//MPP <= 2'b11(M-mode) MIE <= 1
     end
     else if (irq_taken_o)
     begin
-        mstatus_mpie_r <= mstatus_mie_r;
-        mstatus_mie_r <= 1'b0;
+        mstatus_r <= {mstatus_r[31:8], mstatus_r[3], mstatus_r[6:4], 1'b0, mstatus_r[2:0]};// MPIE <= MIE, MIE <= 0
     end
     else if (sys_jump_i & is_mret)
     begin
-        mstatus_mie_r <= mstatus_mpie_r;
-        mstatus_mpie_r <= 1'b1;
+        mstatus_r <= {mstatus_r[31:8], mstatus_r[3], mstatus_r[6:4], 1'b1, mstatus_r[2:0]};// MPIE <= MIE, MIE <= 1
     end
+
     else if (is_csr_instr_i && csr_addr_i == `CSR_MSTATUS)
     begin
-        mstatus_mie_r <= updated_csr_data[3];
-        mstatus_mpie_r <= updated_csr_data[7];
+        mstatus_r <= {mstatus_r[31:8],updated_csr_data[3], mstatus_r[6:4], updated_csr_data[7], mstatus_r[2:0]};//only update PMIE MIE
     end
 end
 
+//-----------------------------------------------
 // mie
+//-----------------------------------------------
+// --------------------------------------------------------------------------------------------
+// | WPRI | MEIE | WPRI | SEIE | UEIE | MTIE | WPRI | STIE | UTIE | MSIE | WPRI | SSIE | USIE |
+// --------------------------------------------------------------------------------------------
+// |31  12|  11  |  10  |  9   |  8   |  7   |  6   |  5   |  4   |  3   |  2   |  1   |  0   |
+// --------------------------------------------------------------------------------------------
 always @(posedge clk_i)
 begin
     if (rst_i)
     begin
-        mie_meie_r <= 1'b0;
-        mie_mtie_r <= 1'b0;
-        mie_msie_r <= 1'b0;
+        mie_r <= 32'b0;
     end
     else if (is_csr_instr_i && csr_addr_i == `CSR_MIE)
     begin
-        mie_meie_r <= updated_csr_data[11];
-        mie_mtie_r <= updated_csr_data[7];
-        mie_msie_r <= updated_csr_data[3];
+        mie_r <= {20'b0, updated_csr_data[11], 3'b0, updated_csr_data[7], 3'b0, updated_csr_data[3], 3'b0};//only update MEIE MTIE MSIE
     end
 end
 
+//-----------------------------------------------
 // mtvec
+//-----------------------------------------------
+// ---------------
+// | BASE | MODE |
+// ---------------
+// |31   2|1    0|
+// ---------------
+assign mtvec_base = {mtvec_r[DATA_WIDTH-1 : 2], 2'b00};
 always @(posedge clk_i)
 begin
     if (rst_i)
@@ -286,7 +296,9 @@ begin
     end
 end
 
-// mscratch
+//-----------------------------------------------
+// mtvec
+//-----------------------------------------------
 always @(posedge clk_i)
 begin
     if (rst_i)
@@ -299,7 +311,9 @@ begin
     end
 end
 
+//-----------------------------------------------
 // mepc
+//-----------------------------------------------
 always @(posedge clk_i)
 begin
     if (rst_i)
@@ -320,7 +334,14 @@ begin
     end
 end
 
+//-----------------------------------------------
 // mcause
+//-----------------------------------------------
+// ------------------------------------
+// | Interrupt | Excption Code (WLRL) |
+// ------------------------------------
+// |    31     |30                   0|
+// ------------------------------------
 always @(posedge clk_i)
 begin
     if (rst_i)
@@ -329,7 +350,7 @@ begin
     end
     else if (irq_taken_o)
     begin
-        mcause_r <= irq_cause;
+        mcause_r <= mcause_d;
     end
     else if (is_csr_instr_i && csr_addr_i == `CSR_MCAUSE)
     begin
@@ -337,26 +358,43 @@ begin
     end
 end
 
+always @(*)
+begin
+    if(     ext_irq_i & mie_r[11]) mcause_d = {1'b1, 27'b0, 4'd11};
+    else if(tmr_irq_i & mie_r[ 7]) mcause_d = {1'b1, 27'b0, 4'd7 };
+    else if(tmr_irq_i & mie_r[ 7]) mcause_d = {1'b1, 27'b0, 4'd3 };
+    else if(exception_vld_i    ) mcause_d = {1'b0, 27'b0, exception_cause_i};
+    else                         mcause_d = {1'b1, 27'b0, 4'd0 };
+end
+
 // TODO: mtval for exception handling
 
+//-----------------------------------------------
 // mip : read-only
+//-----------------------------------------------
+// --------------------------------------------------------------------------------------------
+// | WPRI | MEIP | WPRI | SEIP | UEIP | MTIP | WPRI | STIP | UTIP | MSIP | WPRI | SSIP | USIP |
+// --------------------------------------------------------------------------------------------
+// |31  12|  11  |  10  |  9   |  8   |  7   |  6   |  5   |  4   |  3   |  2   |  1   |  0   |
+// --------------------------------------------------------------------------------------------
 always @(posedge clk_i)
 begin
     if (rst_i)
     begin
-        mip_meip_r <= 1'b0;
-        mip_mtip_r <= 1'b0;
-        mip_msip_r <= 1'b0;
+        mip_r <= 32'b0;
     end
     else
     begin
-        mip_meip_r <= ext_irq_i;
-        mip_mtip_r <= tmr_irq_i;
-        mip_msip_r <= sft_irq_i;
+        //mip_MEIP <= ext_irq_i
+        //mip_MTIP <= tmr_irq_i
+        //mip_MSIP <= sft_irq_i
+        mip_r <= {20'b0, ext_irq_i, 3'b0, tmr_irq_i, 3'b0, sft_irq_i, 3'b0};
     end
 end
 
+//-----------------------------------------------
 // mcycle, mcycleh
+//-----------------------------------------------
 always @(posedge clk_i)
 begin
     if (rst_i)
@@ -369,11 +407,12 @@ begin
             `CSR_MCYCLE :
                 mcycle_r[31 : 0] <= updated_csr_data;
             `CSR_MCYCLEH :
-                mcycle_r[63: 32]    <= updated_csr_data;
+                mcycle_r[63: 32] <= updated_csr_data;
+            //Note
             `CSR_CYCLE :
                 mcycle_r[31 : 0] <= updated_csr_data;
             `CSR_CYCLEH :
-                mcycle_r[63: 32]    <= updated_csr_data;
+                mcycle_r[63: 32] <= updated_csr_data;
         endcase
     end
     else
@@ -385,6 +424,68 @@ end
 // TODO: minstret, minstreth
 
 // =============================================================================================
+//  S-MODE SYSTEM Operations
+//
+
+//-----------------------------------------------
+// mstatus
+//-----------------------------------------------
+// -----------------------------------------------------------------------------------------------------------------------------------------
+// | SD |  WPRI  | TSR | TW | TVM | MXR | SUM | MPRV |  XS  |  FS  | MPP | WPRI | SPP | MPIE | WPRI | SPIE | UPIE | MIE | WPRI | SIE | UIE |
+// -----------------------------------------------------------------------------------------------------
+// | 31 |30    23| 22  | 21 | 20  | 19  | 18  |  17  |16  15|14  13|12 11|10   9|  8  |  7   |  6   |  5   |  4   |  3  |  2   |  1  |  0  |
+// -----------------------------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------
+// sstatus
+//-----------------------------------------------
+// -----------------------------------------------------------------------------------------------------
+// | SD |  WPRI  | MXR | SUM | WPRI |  XS  |  FS  | WPRI | SPP | WPRI | SPIE | UPIE | WPRI | SIE | UIE |
+// -----------------------------------------------------------------------------------------------------
+// | 31 |30    20| 19  | 18  |  17  |16  15|14  13|12   9|  8  |7    6|  5   |  4   |3    2|  1  |  0  |
+// -----------------------------------------------------------------------------------------------------
+assign sstatus = {mstatus_r[31], 11'b0, mstatus_r[19:18], 1'b0, mstatus_r[16:13], 4'b0, mstatus_r[ 8], 2'b0, mstatus_r[ 5: 4], 2'b0, mstatus_r[ 1: 0]};
+
+//-----------------------------------------------
+// satp
+//-----------------------------------------------
+// ---------------------------------
+// | MODE | ASID(WARL) | PPN(WARL) |
+// ---------------------------------
+// |  31  |30        22|21        0|
+// ---------------------------------
+always @(posedge clk_i)
+begin
+    if (rst_i)
+    begin
+        satp_r <= 32'b0;
+    end
+    else if (is_csr_instr_i && csr_addr_i == `CSR_SATP)
+    begin
+        satp_r <= updated_csr_data;
+    end
+end
+
+
+
+// =============================================================================================
+//  U-MODE SYSTEM Operations
+//
+//-----------------------------------------------
+// cycle, cycleh
+//-----------------------------------------------
+always @(posedge clk_i)
+begin
+    if (rst_i)
+    begin
+        cycle_r <= 64'b0;
+    end
+    else
+    begin
+        cycle_r <= cycle_r + 1;
+    end
+end
+
+// =============================================================================================
 //  Operations and Multiplexer
 //
 
@@ -392,9 +493,9 @@ always @( * )
 begin
     case (csr_addr_i)
         `CSR_MSTATUS:
-            csr_data = mstatus;
+            csr_data = mstatus_r;
         `CSR_MIE:
-            csr_data = mie;
+            csr_data = mie_r;
         `CSR_MTVEC:
             csr_data = mtvec_r;
 
@@ -406,16 +507,20 @@ begin
             csr_data = mcause_r;
         //`CSR_MTVAL:       csr_data = mtval_r;
         `CSR_MIP:
-            csr_data = mip;
+            csr_data = mip_r;
 
         `CSR_MCYCLE:
             csr_data = mcycle_r[31 : 0];
         `CSR_MCYCLEH:
             csr_data = mcycle_r[63: 32];
 
-        //`CSR_MINSTRET:    csr_data = minstret_r[DATA_WIDTH-1 :0];
+        //`CSR_MINSTRET:  csr_data = minstret_r[DATA_WIDTH-1 :0];
         //`CSR_MINSTRETH: csr_data = minstret_r[63:32];
 
+        // `CSR_CYCLE:
+        //     csr_data = cycle_r[31 : 0];
+        // `CSR_CYCLEH:
+        //     csr_data = cycle_r[63: 32];
         `CSR_CYCLE:
             csr_data = mcycle_r[31 : 0];
         `CSR_CYCLEH:
@@ -430,14 +535,15 @@ begin
         `CSR_MHARTID:
             csr_data = mhartid;
 
+        `CSR_SSTATUS:
+            csr_data = sstatus;
+        `CSR_SATP:
+            csr_data = satp_r;
+
         default :
             csr_data = 0;
     endcase
 end
-
-`define CSR_RW 2'b01
-`define CSR_RS 2'b10
-`define CSR_RC 2'b11
 
 always @( * )
 begin
@@ -453,6 +559,24 @@ begin
     endcase
 end
 
+always @(posedge clk_i)
+begin
+    if (rst_i)
+    begin 
+        privilege_lvl_r <= 2'b11;//M-Mode
+    end
+    else
+    begin
+        if(is_mret)
+        begin
+            privilege_lvl_r <= mstatus_r[12:11]; //MPP
+        end
+        else if(is_sret)
+        begin
+            privilege_lvl_r <= {1'b0, mstatus_r[8]}; //SPP
+        end
+    end
+end
 
 // =============================================================================================
 //  Output signals interface
@@ -462,12 +586,25 @@ assign sys_jump_csr_data_o = is_mret ? mepc_r :
        is_ecall ? mtvec_base :
        32'b0;
 
-assign irq_taken_o = (mstatus_mie_r & mirq);
+// ------------------
+// mstatus[3] == mstatus_MIE
+// mie[11] == mie_MEIE mie[7] == mie_MTIE mie[3] == mie_MSIE
+assign irq_taken_o = (mstatus_r[3] &&
+                    ((ext_irq_i & mie_r[11]) || (tmr_irq_i & mie_r[7]) || (sft_irq_i & mie_r[3]) || exception_vld_i));
+
+
 // ------------------
 // mtvec[1:0] == 0 : MODE 0, set PC to BASE
 // mtvec[1:0] == 1 : MODE 1, set PC to BASE + 4*casue
 // mtvec[1:0] >= 2 : Reserved
-assign PC_handler_o = (mtvec_mode == 2'b00) ? mtvec_base
-       : mtvec_base + (excp_code << 2);
+assign PC_handler_o = (mtvec_r[1: 0] == 2'b00 || !mcause_d[31]) ? mtvec_base
+       : mtvec_base + (mcause_d[30: 0] << 2);
+
+
+//MMU
+assign mmu_enable_o    = satp_r[31];
+assign root_ppn_o      = satp_r[21: 0];
+assign asid_o          = satp_r[30:22];
+assign privilege_lvl_o = privilege_lvl_r;
 
 endmodule   // csr_file

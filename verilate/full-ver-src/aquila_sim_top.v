@@ -142,8 +142,8 @@ wire bdm_1_M_BOOT_PORT_WVALID;
 //assign sys_diff_clock_1_CLK_N = sys_diff_clock_clk_n;
 //assign sys_diff_clock_1_CLK_P = sys_diff_clock_clk_p;
  aquila #(
-    .C_S_CONFIG_PORT_DATA_WIDTH(32),  // Width of S_AXI data bus
-    .C_S_CONFIG_PORT_ADDR_WIDTH(5),  // Width of S_AXI address bus
+    // .C_S_CONFIG_PORT_DATA_WIDTH(32),  // Width of S_AXI data bus
+    // .C_S_CONFIG_PORT_ADDR_WIDTH(5),  // Width of S_AXI address bus
     .C_M_DCACHE_PORT_ID_WIDTH(1),  // Thread ID Width
     .C_M_DCACHE_PORT_ADDR_WIDTH(32),  // Width of Address Bus
     .C_M_DCACHE_PORT_DATA_WIDTH(32),  // Width of Data Bus
@@ -166,8 +166,8 @@ wire bdm_1_M_BOOT_PORT_WVALID;
     .C_M_ICACHE_PORT_BUSER_WIDTH(1)  // Width of User Response Bus
   ) inst (.cache_aclk(clk),
         .cache_aresetn(rst_n),
-        .cfg_dev_aclk(clk),
-        .cfg_dev_aresetn(rst_n),
+        .device_aclk(clk),
+        .device_aresetn(rst_n),
         .m_dcache_port_araddr(aquila_0_M_DCACHE_PORT_ARADDR),
         .m_dcache_port_arburst(aquila_0_M_DCACHE_PORT_ARBURST),
         .m_dcache_port_arcache(aquila_0_M_DCACHE_PORT_ARCACHE),
@@ -264,26 +264,27 @@ wire bdm_1_M_BOOT_PORT_WVALID;
         .m_icache_port_wlast(aquila_0_M_ICACHE_PORT_WLAST),
         .m_icache_port_wready(aquila_0_M_ICACHE_PORT_WREADY),
         .m_icache_port_wstrb(aquila_0_M_ICACHE_PORT_WSTRB),
-        .m_icache_port_wvalid(aquila_0_M_ICACHE_PORT_WVALID),
-        .s_config_port_araddr(bdm_1_M_BOOT_PORT_ARADDR[4:0]),
-        .s_config_port_arprot(bdm_1_M_BOOT_PORT_ARPROT),
-        .s_config_port_arready(bdm_1_M_BOOT_PORT_ARREADY),
-        .s_config_port_arvalid(bdm_1_M_BOOT_PORT_ARVALID),
-        .s_config_port_awaddr(bdm_1_M_BOOT_PORT_AWADDR[4:0]),
-        .s_config_port_awprot(bdm_1_M_BOOT_PORT_AWPROT),
-        .s_config_port_awready(bdm_1_M_BOOT_PORT_AWREADY),
-        .s_config_port_awvalid(bdm_1_M_BOOT_PORT_AWVALID),
-        .s_config_port_bready(bdm_1_M_BOOT_PORT_BREADY),
-        .s_config_port_bresp(bdm_1_M_BOOT_PORT_BRESP),
-        .s_config_port_bvalid(bdm_1_M_BOOT_PORT_BVALID),
-        .s_config_port_rdata(bdm_1_M_BOOT_PORT_RDATA),
-        .s_config_port_rready(bdm_1_M_BOOT_PORT_RREADY),
-        .s_config_port_rresp(bdm_1_M_BOOT_PORT_RRESP),
-        .s_config_port_rvalid(bdm_1_M_BOOT_PORT_RVALID),
-        .s_config_port_wdata(bdm_1_M_BOOT_PORT_WDATA),
-        .s_config_port_wready(bdm_1_M_BOOT_PORT_WREADY),
-        .s_config_port_wstrb(bdm_1_M_BOOT_PORT_WSTRB),
-        .s_config_port_wvalid(bdm_1_M_BOOT_PORT_WVALID));
+        .m_icache_port_wvalid(aquila_0_M_ICACHE_PORT_WVALID)
+        // .s_config_port_araddr(bdm_1_M_BOOT_PORT_ARADDR[4:0]),
+        // .s_config_port_arprot(bdm_1_M_BOOT_PORT_ARPROT),
+        // .s_config_port_arready(bdm_1_M_BOOT_PORT_ARREADY),
+        // .s_config_port_arvalid(bdm_1_M_BOOT_PORT_ARVALID),
+        // .s_config_port_awaddr(bdm_1_M_BOOT_PORT_AWADDR[4:0]),
+        // .s_config_port_awprot(bdm_1_M_BOOT_PORT_AWPROT),
+        // .s_config_port_awready(bdm_1_M_BOOT_PORT_AWREADY),
+        // .s_config_port_awvalid(bdm_1_M_BOOT_PORT_AWVALID),
+        // .s_config_port_bready(bdm_1_M_BOOT_PORT_BREADY),
+        // .s_config_port_bresp(bdm_1_M_BOOT_PORT_BRESP),
+        // .s_config_port_bvalid(bdm_1_M_BOOT_PORT_BVALID),
+        // .s_config_port_rdata(bdm_1_M_BOOT_PORT_RDATA),
+        // .s_config_port_rready(bdm_1_M_BOOT_PORT_RREADY),
+        // .s_config_port_rresp(bdm_1_M_BOOT_PORT_RRESP),
+        // .s_config_port_rvalid(bdm_1_M_BOOT_PORT_RVALID),
+        // .s_config_port_wdata(bdm_1_M_BOOT_PORT_WDATA),
+        // .s_config_port_wready(bdm_1_M_BOOT_PORT_WREADY),
+        // .s_config_port_wstrb(bdm_1_M_BOOT_PORT_WSTRB),
+        // .s_config_port_wvalid(bdm_1_M_BOOT_PORT_WVALID)
+        );
   aquila_mock_bdm #(
 	.C_M_BOOT_PORT_ADDR_WIDTH(32),  // Width of M_AXI address bus. 
     // The master generates the read and write addresses of width specified as C_M_AXI_ADDR_WIDTH.

@@ -101,7 +101,7 @@ module core_top #(
     output                      data_rw_o,      // 0: data read, 1: data write.
     output [DATA_WIDTH/8-1 : 0] data_byte_enable_o,
     output                      data_req_o,
-    output                      data_strobe_o,
+    // output                      data_strobe_o,
 
     // Interrupt sources.
     input                       ext_irq_i,
@@ -189,12 +189,47 @@ wire [DATA_WIDTH-1 : 0] cond_branch_target_addr, uncond_branch_target_addr;
 wire irq_taken;
 wire [DATA_WIDTH-1 : 0] PC_handler;
 
-//  Signals from the Memory Access Stage
-assign instruction_addr_o = pc;
-assign data_write_o = data_o;
-assign data_addr_o = exe_addr2mem;
-assign data_rw_o = exe_we;
-assign data_byte_enable_o = byte_write_sel;
+// ----------------------
+// csr <-> mmu
+// ----------------------
+wire         mmu_enable_csr2mmu = 0;
+wire [21: 0] root_ppn_csr2mmu;
+wire [ 8: 0] asid_csr2mmu;
+wire [ 1: 0] privilege_lvl_csr2mmu;
+
+// ----------------------
+// instruction <-> mmu
+// ----------------------
+wire         i_req_vld_fet2mmu;
+wire [31: 0] i_req_vaddr_fet2mmu;
+
+wire         i_exception_vld_mmu2fet;
+wire [ 3: 0] i_exception_cause_mmu2fet;
+
+// ----------------------
+// data <-> mmu
+// ----------------------
+wire         d_req_vld_mem2mmu;        
+wire [31: 0] d_req_vaddr_mem2mmu;      
+wire [31: 0] d_req_data_mem2mmu;
+wire         d_req_rw_mem2mmu;         
+wire [ 3: 0] d_req_byte_enable_mem2mmu;
+
+wire         d_rtrn_vld_mmu2mem;
+wire         d_exception_vld_mmu2mem;
+
+// ------------------------
+// memory_access <-> mmu_wb
+// ------------------------
+wire [31: 0] d_rtrn_data_mmu2mem_wb;
+wire [ 3: 0] d_exception_cause_mmu2mem_wb;
+
+// Exception
+// wire mem_memory_alignment_exception2mem_wb;
+// wire exe_mem_exception_vld2mem_wb, mem_wb_exception_vld2csr;
+// wire [3:0] exe_mem_exception_cause2mem_wb, mem_wb_exception_cause2csr;
+
+
 
 // =============================================================================
 // Finite state machine that controls the processor pipeline stalls.
@@ -254,7 +289,7 @@ begin
             else
                 dS_nxt = d_IDLE;
         d_WAIT:
-            if (data_ready_i)
+            if (d_rtrn_vld_mmu2mem)
                 dS_nxt = d_IDLE;
             else
                 dS_nxt = d_WAIT;
@@ -262,10 +297,26 @@ begin
 end
 
 // -----------------------------------------------------------------------------
-// Output instruction/data request signals
-assign instruction_req_o = !(iS == i_WAIT && instruction_ready_i);
-assign data_req_o = (dS_nxt == d_WAIT);
-assign data_strobe_o = (dS == d_IDLE) && (exe_re | exe_we);
+// Output instruction/data request signals to mmu
+// assign instruction_req_o = !(iS == i_WAIT && instruction_ready_i);
+// assign data_req_o = (dS_nxt == d_WAIT);
+// assign data_strobe_o = (dS == d_IDLE) && (exe_re | exe_we);
+
+//  Signals from the Memory Access Stage
+// assign instruction_addr_o = pc;
+// assign data_write_o = data_o;
+// assign data_addr_o = exe_addr2mem;
+// assign data_rw_o = exe_we;
+// assign data_byte_enable_o = byte_write_sel;
+
+assign i_req_vld_fet2mmu   = !(iS == i_WAIT && instruction_ready_i);
+assign i_req_vaddr_fet2mmu = pc;
+
+assign d_req_vld_mem2mmu          = (dS_nxt == d_WAIT);      
+assign d_req_vaddr_mem2mmu        = exe_addr2mem;      
+assign d_req_data_mem2mmu         = data_o;
+assign d_req_rw_mem2mmu           = exe_we;
+assign d_req_byte_enable_mem2mmu  = byte_write_sel;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                        the following are submodules                        //
@@ -664,7 +715,7 @@ writeback Writeback(
     .p_data_i(exe_p_data),
 
     // from D-memory
-    .mem_data_i(data_read_i),
+    .mem_data_i(d_rtrn_data_mmu2mem_wb),
 
     // to RegisterFile, Forwarding_Unit
     .rd_we_o(rd_we2wb),
@@ -703,7 +754,70 @@ CSR(
     .sft_irq_i(sft_irq_i),
     .irq_taken_o(irq_taken),
     .PC_handler_o(PC_handler),
-    .nxt_unexec_PC_i(fet_pc2dec)
+    .nxt_unexec_PC_i(fet_pc2dec),
+
+    //MMU
+    .mmu_enable_o(mmu_enable_csr2mmu),
+    .root_ppn_o(root_ppn_csr2mmu),
+    .asid_o(asid_csr2mmu),
+    .privilege_lvl_o(privilege_lvl_csr2mmu),
+
+    // Exception requests
+    .exception_vld_i(),
+    .exception_cause_i()
 );
 
+// =============================================================================
+mmu #(
+    .INSTR_TLB_ENTRIES(4),
+    .DATA_TLB_ENTRIES(4),
+    .ASID_WIDTH(1)
+) MMU (
+    .clk_i(clk_i),
+    .rst_i(rst_i),
+    .flush_i('b0),
+
+    //From CSR
+    .enable_i(mmu_enable_csr2mmu),
+    .root_ppn_i(root_ppn_csr2mmu),
+    .asid_i(asid_csr2mmu),
+    .privilege_lvl_i(privilege_lvl_csr2mmu),
+
+    //From processor to icache
+    .i_req_vld_i(i_req_vld_fet2mmu),         // request.
+    .i_req_vaddr_i(i_req_vaddr_fet2mmu),     // Memory address.
+
+    .i_req_vld_o(instruction_req_o),           // request.
+    .i_req_paddr_o(instruction_addr_o),        // Memory address.
+
+    //From processor to dcache
+    .d_req_vld_i(d_req_vld_mem2mmu),         // request.
+    .d_req_vaddr_i(d_req_vaddr_mem2mmu),       // Memory address.
+    .d_req_data_i(d_req_data_mem2mmu),
+    .d_req_rw_i(d_req_rw_mem2mmu),          // 0: data read, 1: data write.
+    .d_req_byte_enable_i(d_req_byte_enable_mem2mmu),
+    
+    //Send request to dcache
+    .d_req_vld_o(data_req_o),
+    // .d_strobe_o(data_strobe_o),
+    .d_req_paddr_o(data_addr_o),
+    .d_req_data_o(data_write_o),
+    .d_req_rw_o(data_rw_o),          // 0: data read, 1: data write.
+    .d_req_byte_enable_o(data_byte_enable_o),    
+
+    //From dcache
+    .d_rtrn_vld_i(data_ready_i),
+    .d_rtrn_data_i(data_read_i),
+
+    //From dcache to processor
+    .d_rtrn_vld_o(d_rtrn_vld_mmu2mem),
+    .d_rtrn_data_o(d_rtrn_data_mmu2mem_wb),
+
+    //Exception
+    .i_exception_vld_o(i_exception_vld_mmu2fet),
+    .i_exception_cause_o(i_exception_cause_mmu2fet),
+
+    .d_exception_vld_o(d_exception_vld_mmu2mem),
+    .d_exception_cause_o(d_exception_cause_mmu2mem_wb)
+);
 endmodule // core_top

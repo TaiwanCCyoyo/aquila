@@ -224,7 +224,7 @@ RISCV_CORE0(
     .data_rw_o(data_rw),
     .data_byte_enable_o(p_d_byte_enable),
     .data_req_o(p_d_req),
-    .data_strobe_o(p_d_strobe),
+    // .data_strobe_o(p_d_strobe),
 
     // Interrupts
     .ext_irq_i(1'b0),     // no external interrupt (yet)
@@ -232,10 +232,16 @@ RISCV_CORE0(
     .sft_irq_i(sft_irq)
 );
 
+reg d_req_pre;
+always@(posedge clk_i) begin
+    d_req_pre <= p_d_req;
+end
+assign p_d_strobe = ((~d_req_pre && p_d_req) || (p_d_req && p_d_ready));
+
 // ----------------------------------------------------------------------------
 //  Instiantiation of the dual-port tightly-coupled scratchpad memory module.
 //  0x00000000 ~ 0x0FFFFFFF
-localparam TCM_SIZE_IN_WORDS = 16384; // 64KB
+localparam TCM_SIZE_IN_WORDS = 67108864; // 64MB
 localparam TCM_ADDR_WIDTH = $clog2(TCM_SIZE_IN_WORDS);
 
 sram_dp #(.DATA_WIDTH(DATA_WIDTH), .N_ENTRIES(TCM_SIZE_IN_WORDS))

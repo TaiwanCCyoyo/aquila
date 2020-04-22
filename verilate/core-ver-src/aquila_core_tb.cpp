@@ -60,7 +60,7 @@ int main(int argc, char **argv)
     cout << "Execute code in TCM\n";
     fstream bin_file, mem_file;
     bin_file.open(argv[1],ios::in | ios::binary);
-    mem_file.open("/home/twccyoyo/riscv/aquila_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem",ios::out);
+    mem_file.open("/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem",ios::out);
 
     char c0, c1, c2, c3;
 
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
         cout<<"Failed to open "<<argv[1]<<" file!!!"<<endl;
         return 1;
     } else if(!mem_file) {
-        cout<<"Failed to open "<<"/home/twccyoyo/riscv/Daicjou_2/aquila/ip_repo/aquila/hdl/mem/test.mem"<<" file!!!"<<endl;
+        cout<<"Failed to open "<<"/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem"<<" file!!!"<<endl;
         return 1;
     } else {
         while(bin_file.get(c0)){
