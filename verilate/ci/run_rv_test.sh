@@ -93,7 +93,7 @@ for row in "${fname_array[@]}";do
   printf "start ${testcase} ..."
   echo "================================================================" >> $RUN_LOG
   echo "testcase: ${testcase}" >> $RUN_LOG
-  ./$V_MODEL $RV_TEST_PATH/$testcase 1 >> $RUN_LOG
+  ./$V_MODEL $RV_TEST_PATH/$testcase 1 1 >> $RUN_LOG
   ret_code=$?
   if [ $ret_code -ne 0 ]; then
     printf " failed"

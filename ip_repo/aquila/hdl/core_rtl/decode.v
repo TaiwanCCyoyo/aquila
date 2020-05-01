@@ -83,10 +83,6 @@ module decode #(parameter DATA_WIDTH = 32)
     output [4: 0]             rs1_addr_o,
     output [4: 0]             rs2_addr_o,
 
-    // System Jump operation
-    output                    sys_jump_o,
-    output [11: 0]            sys_jump_csr_addr_o,
-
     // illegal
     output                    illegal_instr_o,
 
@@ -126,7 +122,25 @@ module decode #(parameter DATA_WIDTH = 32)
     output reg [4: 0]             rs1_addr2fwd_o,
     output reg [4: 0]             rs2_addr2fwd_o,
     output reg [DATA_WIDTH-1 : 0] rs1_data2fwd_o,
-    output reg [DATA_WIDTH-1 : 0] rs2_data2fwd_o
+    output reg [DATA_WIDTH-1 : 0] rs2_data2fwd_o,
+
+    //From CSR
+    input  wire                    tvm_i,
+    input  wire [ 1: 0]            privilege_lvl_i,
+
+    // System Jump operation
+    output reg                     sys_jump_o,
+    output reg  [ 1: 0]            sys_jump_csr_addr_o,
+
+    //Exception from Fetch
+    input  wire                    exp_vld_i,
+    input  wire [ 3: 0]            exp_cause_i,
+    input  wire [31: 0]            exp_tval_i,
+
+    //Exception to Execute
+    output reg                     exp_vld_o,
+    output reg  [ 3: 0]            exp_cause_o,
+    output reg  [31: 0]            exp_tval_o
 );
 
 // Interal signals of the Decode Stage.
@@ -343,6 +357,8 @@ wire rv32_ecall = rv32_sys_op & (rv32_instr[31: 20] == 12'b0000_0000_0000);
 wire rv32_ebreak = rv32_sys_op & (rv32_instr[31: 20] == 12'b0000_0000_0001);
 wire rv32_mret = rv32_sys_op & (rv32_instr[31: 20] == 12'b0011_0000_0010);
 
+wire rv32_sret = rv32_sys_op & (rv32_instr[31: 20] == 12'b0001_0000_0010);
+
 // ================================================================================
 // Load/Store Instructions
 //
@@ -355,6 +371,14 @@ wire rv32_lhu = rv32_load & rv32_funct3_101;
 wire rv32_sb = rv32_store & rv32_funct3_000;
 wire rv32_sh = rv32_store & rv32_funct3_001;
 wire rv32_sw = rv32_store & rv32_funct3_010;
+
+// ================================================================================
+// Exception
+//
+wire         exp_vld   = rv32_ecall;
+wire [ 3: 0] exp_cause = (privilege_lvl_i == 2'b11)?'d11:
+                         (privilege_lvl_i == 2'b01)?'d9 :'d8;
+wire [31: 0] exp_tval  = 0;
 
 // ================================================================================
 //  Output Signals
@@ -434,9 +458,9 @@ begin
 end
 
 
-assign sys_jump_o = rv32_mret | rv32_ecall; // the instructions that change the pc
-assign sys_jump_csr_addr_o = ( {12{rv32_mret}} & 12'h341)
-                         | ( {12{rv32_ecall}} & 12'h305 );
+wire         sys_jump          = rv32_mret | rv32_sret; // the instructions that change the pc
+wire [ 1: 0] sys_jump_csr_addr = ( {2{rv32_mret}} & 2'b11) |
+                                 ( {2{rv32_sret}} & 2'b01) ;
 
 assign illegal_instr_o =     // the instructions that are not supported currently
        rv32_fence
@@ -480,6 +504,11 @@ begin
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
+        sys_jump_o <= 0;
+        sys_jump_csr_addr_o <= 0;
+        exp_vld_o   <= 0;
+        exp_cause_o <= 0;
+        exp_tval_o <= 0;
     end
     else if (stall_i)
     begin
@@ -512,6 +541,11 @@ begin
         cond_branch_hit_EXE_o <= cond_branch_hit_EXE_o;
         cond_branch_result_EXE_o <= cond_branch_result_EXE_o;
         uncond_branch_hit_EXE_o <= uncond_branch_hit_EXE_o;
+        sys_jump_o <= sys_jump_o;
+        sys_jump_csr_addr_o <= sys_jump_csr_addr_o;
+        exp_vld_o   <= exp_vld_o;
+        exp_cause_o <= exp_cause_o;
+        exp_tval_o <= exp_tval_o;
     end
     else if (flush_i)
     begin // nop instruction = 0000_0000_0000_0000_0000_0000_0001_0011 = 32'h13
@@ -544,6 +578,48 @@ begin
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
+        sys_jump_o <= 0;
+        sys_jump_csr_addr_o <= 0;
+        exp_vld_o   <= 0;
+        exp_cause_o <= 0;
+        exp_tval_o <= 0;
+    end
+    else if(exp_vld)
+    begin
+         pc_o <= pc_i;
+        rs1_data2fwd_o <= 0;
+        rs2_data2fwd_o <= 0;
+        imm_o <= 0;
+        inputA_sel_o <= 2;
+        inputB_sel_o <= 0;
+        operation_sel_o <= 0;
+        mem_load_ext_sel_o <= 0;
+        mem_input_sel_o <= 0;
+        alu_muldiv_sel_o <= 0;
+        shift_sel_o <= 0;
+        is_branch_o <= 0;
+        is_jal_o <= 0;
+        is_jalr_o <= 0;
+        regfile_we_o <= 1;
+        regfile_input_sel_o <= 4;
+        mem_we_o <= 0;
+        mem_re_o <= 0;
+        mem_input_sel_o <= 0;
+        rd_addr_o <= 0;
+        rs1_addr2fwd_o <= 0;
+        rs2_addr2fwd_o <= 0;
+        is_csr_instr_o <= 0;
+        csr_addr_o <= 0;
+        csr_imm_o <= 0;
+        instr_valid_o <= 0;
+        cond_branch_hit_EXE_o <= 0;
+        cond_branch_result_EXE_o <= 0;
+        uncond_branch_hit_EXE_o <= 0;
+        sys_jump_o <= 0;
+        sys_jump_csr_addr_o <= 0;
+        exp_vld_o   <= exp_vld;
+        exp_cause_o <= exp_cause;
+        exp_tval_o <= exp_tval;
     end
     else
     begin
@@ -576,6 +652,11 @@ begin
         cond_branch_hit_EXE_o <= cond_branch_hit_ID_i;
         cond_branch_result_EXE_o <= cond_branch_result_ID_i;
         uncond_branch_hit_EXE_o <= uncond_branch_hit_ID_i;
+        sys_jump_o <= sys_jump;
+        sys_jump_csr_addr_o <= sys_jump_csr_addr;
+        exp_vld_o   <= exp_vld_i;
+        exp_cause_o <= exp_cause_i;
+        exp_tval_o <= exp_tval_i;
     end
 end
 

@@ -54,9 +54,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  
-
-  if(argc < 3 || argv[3][0] == '0'){
+  if(argc < 3 || argv[2][0] == '0'){
     cout << "Execute code in TCM\n";
     fstream bin_file, mem_file;
     bin_file.open(argv[1],ios::in | ios::binary);
@@ -87,7 +85,7 @@ int main(int argc, char **argv)
   }
 
   if (argc > 3 ) {
-    if (argv[4][0] == '1')
+    if (argv[3][0] == '1')
       rv_test_enable = true;
     cout << "set rv_test_enable to " << (rv_test_enable ? "\"true\"" : "\"false\"") << endl;
   }
@@ -101,9 +99,10 @@ int main(int argc, char **argv)
 #endif
   uint32_t entry_addr = 0x00000000;
 
-  if(argc > 2 && argv[3][0] == '1'){
+  if(argc > 2 && argv[2][0] == '1'){
     elf_symbols = sim_mem_load_program(top->aquila_testharness->mock_ram, string(argv[1]), &entry_addr);
   }
+  
   if (rv_test_enable) {
     if (elf_symbols.count("tohost")){
       tohost_addr = static_cast<uint32_t>(elf_symbols["tohost"]);
@@ -115,7 +114,12 @@ int main(int argc, char **argv)
 
   top->rst_n = 0;
   cout << "entry_addr = " << "0x" << setfill('0') << setw(8) << right << hex << entry_addr << endl;
-  top->main_memory_addr = entry_addr;
+  if(argc < 3 || argv[2][0] == '0'){
+    top->main_memory_addr = 0x00000000;
+  } else {
+    top->main_memory_addr = 0x80000000;
+  }
+  
   //load_simple_asm();
   sim_mem_dump_memory(top->aquila_testharness->mock_ram, "dump.mem");
   for (int i = 0 ; i < 5 ; i ++){

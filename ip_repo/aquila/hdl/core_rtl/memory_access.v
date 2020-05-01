@@ -57,22 +57,73 @@
 module memory_access #( parameter DATA_WIDTH = 32 )
 (
     // from Execute_Memory_Pipeline
-    input  [DATA_WIDTH-1 : 0]     unaligned_data_i,       // from rs2
-    input  [1 : 0]                mem_addr_alignment_i,
-    input  [1 : 0]                mem_input_sel_i,
+    input  wire [DATA_WIDTH-1 : 0]  unaligned_data_i,       // from rs2
+    input  wire [31: 0]             mem_addr_i,
+    input  wire [1 : 0]             mem_input_sel_i,
+    input  wire                     exe_we_i,
+    input  wire                     exe_re_i,
 
     // to d-cache
-    output reg [DATA_WIDTH-1 : 0] data_o,           // data_write
-    output reg [3: 0]             byte_write_sel_o,
+    output reg [DATA_WIDTH-1 : 0]   data_o,           // data_write
+    output reg [3: 0]               byte_write_sel_o,
+
+    // System Jump operation
+    input  wire                     sys_jump_i,
+    input  wire [ 1: 0]             sys_jump_csr_addr_i,
+    output wire                     sys_jump_o,
+    output wire [ 1: 0]             sys_jump_csr_addr_o,
 
     // indicating memory alignment exception
-    output   reg                  memory_alignment_exception_o
+    output reg                      memory_alignment_exception_o,
+
+    //exception from execute
+    input  wire                     exp_vld_i,
+    input  wire [3 : 0]             exp_cause_i,
+    input  wire [31: 0]             exp_tval_i,
+    input  wire [31: 0]             instruction_pc_i,
+
+    //exception from mmu
+    input  wire                     exp_from_mmu_vld_i,
+    input  wire [3 : 0]             exp_from_mmu_cause_i,
+    input  wire [31: 0]             exp_from_mmu_tval_i,
+
+    //exception to writeback
+    output reg                      exp_vld_o,
+    output reg  [3 : 0]             exp_cause_o,
+    output reg  [31: 0]             exp_tval_o,
+    output wire [31: 0]             instruction_pc_o
 );
+
+assign sys_jump_o          = sys_jump_i;
+assign sys_jump_csr_addr_o = sys_jump_csr_addr_i;
+assign instruction_pc_o    = instruction_pc_i;
+
+always@(*)
+begin
+    if(memory_alignment_exception_o && (exe_we_i || exe_re_i))
+    begin
+        exp_vld_o   = 1'b1;
+        exp_cause_o = (exe_we_i)?'d6:'d4;
+        exp_tval_o  = mem_addr_i;
+    end
+    else if(exp_from_mmu_vld_i)
+    begin
+        exp_vld_o   = 1'b1;
+        exp_cause_o = exp_from_mmu_cause_i;
+        exp_tval_o  = exp_from_mmu_tval_i;
+    end
+    else
+    begin
+        exp_vld_o   = exp_vld_i;
+        exp_cause_o = exp_cause_i;
+        exp_tval_o  = exp_tval_i;
+    end
+end
 
 // store
 always @(*)
 begin
-    case (mem_addr_alignment_i)
+    case (mem_addr_i[1:0])
         2'b00:
         begin
             case (mem_input_sel_i)

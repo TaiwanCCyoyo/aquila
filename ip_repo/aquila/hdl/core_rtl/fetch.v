@@ -97,27 +97,53 @@ module fetch #( parameter DATA_WIDTH = 32 )
     output reg                    instr_valid_o,
     output reg                    cond_branch_hit_ID_o,
     output reg                    cond_branch_result_ID_o,
-    output reg                    uncond_branch_hit_ID_o
+    output reg                    uncond_branch_hit_ID_o,
+
+    //Exception from MMU
+    input  wire                    exp_from_mmu_vld_i,
+    input  wire [ 3: 0]            exp_from_mmu_cause_i,
+    input  wire [31: 0]            exp_from_mmu_tval_i,
+
+    //Exception to Decode
+    output reg                     exp_vld_o,
+    output reg  [ 3: 0]            exp_cause_o,
+    output reg  [31: 0]            exp_tval_o
 );
 
-reg stall_delay;
-reg flush_delay;
-reg [31: 0] instruction_delay;
+// reg stall_delay;
+// reg flush_delay;
+// reg [31: 0] instruction_delay;
+
+// always @(posedge clk_i)
+// begin
+//     stall_delay <= stall_i;
+//     flush_delay <= flush_i;
+//     instruction_delay <= stall_i ? instruction_delay : instruction_i;
+// end
+
+// always @(*)
+// begin
+//     if (rst_i)
+//         instruction_o = 32'h00000013;
+//     else if (stall_delay)
+//         instruction_o = instruction_delay;
+//     else if (flush_delay)
+//         instruction_o = 32'h00000013;
+//     else if(exp_from_mmu_vld_i)
+//         instruction_o = 32'h00000013;
+//     else
+//         instruction_o = instruction_delay;
+// end
 
 always @(posedge clk_i)
 begin
-    stall_delay <= stall_i;
-    flush_delay <= flush_i;
-    instruction_delay <= stall_delay ? instruction_delay : instruction_i;
-end
-
-always @(*)
-begin
     if (rst_i)
         instruction_o <= 32'h00000013;
-    else if (stall_delay)
-        instruction_o <= instruction_delay;
-    else if (flush_delay)
+    else if (stall_i)
+        instruction_o <= instruction_o;
+    else if (flush_i)
+        instruction_o <= 32'h00000013;
+    else if(exp_from_mmu_vld_i)
         instruction_o <= 32'h00000013;
     else
         instruction_o <= instruction_i;
@@ -132,6 +158,9 @@ begin
         cond_branch_hit_ID_o <= 0;
         cond_branch_result_ID_o <= 0;
         uncond_branch_hit_ID_o <= 0;
+        exp_vld_o <= 0;
+        exp_cause_o <= 0;
+        exp_tval_o <= 0;
     end
     else if (stall_i)
     begin
@@ -140,6 +169,9 @@ begin
         cond_branch_hit_ID_o <= cond_branch_hit_ID_o;
         cond_branch_result_ID_o <= cond_branch_result_ID_o;
         uncond_branch_hit_ID_o <= uncond_branch_hit_ID_o;
+        exp_vld_o <= exp_vld_o;
+        exp_cause_o <= exp_cause_o;
+        exp_tval_o <= exp_tval_o;
     end
     else if (flush_i)
     begin
@@ -148,6 +180,9 @@ begin
         cond_branch_hit_ID_o <= 0;
         cond_branch_result_ID_o <= 0;
         uncond_branch_hit_ID_o <= 0;
+        exp_vld_o <= 0;
+        exp_cause_o <= 0;
+        exp_tval_o <= 0;
     end
     else
     begin
@@ -156,6 +191,9 @@ begin
         cond_branch_hit_ID_o <= cond_branch_hit_IF_i;
         cond_branch_result_ID_o <= cond_branch_result_IF_i;
         uncond_branch_hit_ID_o <= uncond_branch_hit_IF_i;
+        exp_vld_o <= exp_from_mmu_vld_i;
+        exp_cause_o <= exp_from_mmu_cause_i;
+        exp_tval_o <= exp_from_mmu_tval_i;
     end
 end
 

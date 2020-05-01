@@ -61,6 +61,9 @@ module execute #(parameter DATA_WIDTH = 32)
     input                         clk_i,
     input                         rst_i,
 
+    // Processor pipeline flush signal.
+    input                         flush_i,
+
     // Signal from the Program_Counter Unit.
     input  [DATA_WIDTH-1 : 0]     pc_i,
 
@@ -123,7 +126,24 @@ module execute #(parameter DATA_WIDTH = 32)
     output reg [DATA_WIDTH-1 : 0] p_data_o,
 
     // to Memory_Write_Back_Pipeline
-    output reg                    mem_load_ext_sel_o
+    output reg                    mem_load_ext_sel_o,
+
+    // System Jump operation
+    input  wire                    sys_jump_i,
+    input  wire [ 1: 0]            sys_jump_csr_addr_i,
+    output reg                     sys_jump_o,
+    output reg  [ 1: 0]            sys_jump_csr_addr_o,
+
+    //Exception from Decode
+    input  wire                    exp_vld_i,
+    input  wire [ 3: 0]            exp_cause_i,
+    input  wire [31: 0]            exp_tval_i,
+
+    //Exception to Memory
+    output reg                     exp_vld_o,
+    output reg  [ 3: 0]            exp_cause_o,
+    output reg  [31: 0]            exp_tval_o,
+    output reg  [31: 0]            instruction_pc_o
 );
 
 reg  [DATA_WIDTH-1 : 0]           inputA, inputB;
@@ -217,39 +237,75 @@ always @(posedge clk_i)
 begin
     if (rst_i)
     begin
-        mem_we_o <= 0;
-        mem_re_o    <= 0;
-        rs2_data_o  <= 0;
-        mem_addr_o  <= 0;
-        mem_input_sel_o <= 0;
-        mem_load_ext_sel_o <= 0;
+        mem_we_o            <= 0;
+        mem_re_o            <= 0;
+        rs2_data_o          <= 0;
+        mem_addr_o          <= 0;
+        mem_input_sel_o     <= 0;
+        mem_load_ext_sel_o  <= 0;
         regfile_input_sel_o <= 0;
-        regfile_we_o    <= 0;
-        rd_addr_o   <= 0;
+        regfile_we_o        <= 0;
+        rd_addr_o           <= 0;
+        sys_jump_o          <= 0;
+        sys_jump_csr_addr_o <= 0;
+        exp_vld_o           <= 0;
+        exp_cause_o         <= 0;
+        exp_tval_o          <= 0;
+        instruction_pc_o    <= 0;
     end
     else if (stall_i)
     begin
-        mem_we_o <= mem_we_o;
-        mem_re_o    <= mem_re_o;
-        rs2_data_o  <= rs2_data_o;
-        mem_addr_o  <= mem_addr_o;
-        mem_input_sel_o <= mem_input_sel_o;
-        mem_load_ext_sel_o <= mem_load_ext_sel_o;
+        mem_we_o            <= mem_we_o;
+        mem_re_o            <= mem_re_o;
+        rs2_data_o          <= rs2_data_o;
+        mem_addr_o          <= mem_addr_o;
+        mem_input_sel_o     <= mem_input_sel_o;
+        mem_load_ext_sel_o  <= mem_load_ext_sel_o;
         regfile_input_sel_o <= regfile_input_sel_o;
-        regfile_we_o    <= regfile_we_o;
-        rd_addr_o   <= rd_addr_o;
+        regfile_we_o        <= regfile_we_o;
+        rd_addr_o           <= rd_addr_o;
+        sys_jump_o          <= sys_jump_o;
+        sys_jump_csr_addr_o <= sys_jump_csr_addr_o;
+        exp_vld_o           <= exp_vld_o;
+        exp_cause_o         <= exp_cause_o;
+        exp_tval_o          <= exp_tval_o;
+        instruction_pc_o    <= instruction_pc_o;
+    end
+    else if(flush_i)
+    begin
+        mem_we_o            <= 0;
+        mem_re_o            <= 0;
+        rs2_data_o          <= 0;
+        mem_addr_o          <= 0;
+        mem_input_sel_o     <= 0;
+        mem_load_ext_sel_o  <= 0;
+        regfile_input_sel_o <= 0;
+        regfile_we_o        <= 0;
+        rd_addr_o           <= 0;
+        sys_jump_o          <= 0;
+        sys_jump_csr_addr_o <= 0;
+        exp_vld_o           <= 0;
+        exp_cause_o         <= 0;
+        exp_tval_o          <= 0;
+        instruction_pc_o    <= 0;
     end
     else
     begin
-        mem_we_o <= mem_we_i ;
-        mem_re_o    <= mem_re_i;
-        rs2_data_o  <= rs2_data_i;
-        mem_addr_o  <= mem_addr;
-        mem_input_sel_o <= mem_input_sel_i;
-        mem_load_ext_sel_o <= mem_load_ext_sel_i;
+        mem_we_o            <= mem_we_i ;
+        mem_re_o            <= mem_re_i;
+        rs2_data_o          <= rs2_data_i;
+        mem_addr_o          <= mem_addr;
+        mem_input_sel_o     <= mem_input_sel_i;
+        mem_load_ext_sel_o  <= mem_load_ext_sel_i;
         regfile_input_sel_o <= regfile_input_sel_i;
-        regfile_we_o    <= regfile_we_i;
-        rd_addr_o   <= rd_addr_i;
+        regfile_we_o        <= regfile_we_i;
+        rd_addr_o           <= rd_addr_i;
+        sys_jump_o          <= sys_jump_i;
+        sys_jump_csr_addr_o <= sys_jump_csr_addr_i;
+        exp_vld_o           <= exp_vld_i;
+        exp_cause_o         <= exp_cause_i;
+        exp_tval_o          <= exp_tval_i;
+        instruction_pc_o    <= pc_i;
     end
 end
 

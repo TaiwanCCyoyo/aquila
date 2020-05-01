@@ -92,8 +92,9 @@ module ptw (
     input  wire [ 1: 0] privilege_lvl_i,
 
     // Eception
-    output wire         exception_vld_o,
-    output wire [ 3: 0] exception_cause_o
+    output wire         i_exp_vld_o,
+
+    output wire         d_exp_vld_o
 );
 
 //=======================================================
@@ -313,10 +314,10 @@ assign dtlb_update_content_is_4MB_o = content_is_4MB_r;
 //-----------------------------------------------
 // Exception
 //-----------------------------------------------
-assign exception_vld_o   = exception_vld;
-assign exception_cause_o = (work_for_itlb_r)?'d12 //Instruction page fault
-                                            :'d15;//Store/AMO page fault
-//'d13//Load page fault
+assign i_exp_vld_o   = exception_vld & work_for_itlb_r;
+
+assign d_exp_vld_o   = exception_vld & (~work_for_itlb_r);
+
 
 
 always@(*) begin

@@ -81,6 +81,12 @@ module pipeline_control(
 
     // that flushes Decode_Execute_Pipeline
     output       flush2dec_o,
+
+    // that flushes Execute_Memory_Pipeline
+    output       flush2exe_o,
+
+    // that flushes Memory_Writeback_Pipeline
+    output       flush2mem_o,
     
     // that stall Program_Counter and Fetch_Decode_Pipeline  due to load-use data hazard,
     output       stall_from_hazard_o
@@ -108,6 +114,8 @@ assign branch_flush = branch_taken;
 //
 assign flush2fet_o = branch_flush | sys_jump_i;
 assign flush2dec_o = branch_flush | is_load_use | illegal_instr_i;
+assign flush2exe_o = sys_jump_i;
+assign flush2mem_o = sys_jump_i;
 assign stall_from_hazard_o = is_load_use;
 
 endmodule   // pipeline_control

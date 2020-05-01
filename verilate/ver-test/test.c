@@ -58,7 +58,7 @@
 #include <time.h>
 #include "uart.h"
 
-#define __heap_start 0x00400000
+#define __heap_start 0x80400000
 #define __heap_size  0x100000
 
 void malloc_test(int nwords);
@@ -66,6 +66,7 @@ void timer_isr_test();
 void sleep(int msec);
 
 volatile int got_timmer_isr;
+volatile int malloc_succeed;
 
 //------------------------------
 // ISR
@@ -158,6 +159,8 @@ void volatile isr_is_SupervisorTimerInterrupt(){
 }
 void volatile isr_is_MachineTimerInterrupt(){
     printf("Machine timer interrupt\n");
+    //mip should be clear by timer compare register.
+    //wronge way to fix interrupt.
     asm volatile ("addi t0, zero, 128");
     asm volatile ("csrc mie, t0");
     got_timmer_isr = 1;
@@ -284,9 +287,31 @@ int main(void)
     {
         /* busy waiting */
     }
+    printf("ISR Test finished.\n");
+
+    //test_vm();
+
     printf("Test finished.\n");
     return 0;
 }
+/*
+void test_vm()
+{
+    printf("Enable Trap Virtual Memory(TVM) bit\n");
+
+    asm volatile ("addi t0, zero, 1");
+    asm volatile ("slli t0, t0, 20");
+    asm volatile ("csrrs mstatus, t0");
+
+    printf("Change Mode!!\n");
+    asm volatile ("sret");
+
+    if(malloc_succeed){
+        printf("Enable Trap Virtual Memory(TVM) bit\n");
+    } else {
+        printf("Paging error bacause of malloc Error\n");
+    }
+}*/
 
 void malloc_test(int nwords)
 {
@@ -304,7 +329,9 @@ void malloc_test(int nwords)
 
     if(buf_addr < __heap_start || buf_addr > __heap_start + __heap_size){
         printf("Malloc test Error!!\n\n");
+        malloc_succeed = 0;
     } else {
+        malloc_succeed = 1;
         for (idx = 0; idx < nwords; idx++) buf[idx] = idx;
         for (idx = 0; idx < 10; idx++)
         {

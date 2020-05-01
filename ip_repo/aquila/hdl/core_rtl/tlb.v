@@ -77,7 +77,9 @@ module tlb # (
     input  wire [31: 0] vaddr_i,
     
     output wire         hit_o,
-    output wire [31: 0] paddr_o
+    output wire [31: 0] paddr_o,
+
+    output wire [31: 0] content_o
 );
 //=======================================================
 // Parameter and Integer
@@ -249,7 +251,7 @@ end
 // Output signals interface                       
 //=======================================================
 //hit_o
-assign hit_o = (enable_i)? (|tlb_sel) : translate_req_vld_i;
+assign hit_o = (|tlb_sel);
 
 //paddr_o
 // always@(*) begin
@@ -268,7 +270,7 @@ generate
         else
             assign paddr_temp = paddr_o_gen[g-1].paddr_temp | ( {(32){tlb_sel[g]}} & tlb_paddr[g] );
     end
-    assign paddr_o = (enable_i)? paddr_o_gen[TLB_ENTRIES-1].paddr_temp : vaddr_i;
+    assign paddr_o = paddr_o_gen[TLB_ENTRIES-1].paddr_temp;
 endgenerate
 
 //content_o

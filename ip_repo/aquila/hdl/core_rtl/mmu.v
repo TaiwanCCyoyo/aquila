@@ -67,6 +67,9 @@ module mmu #(
     input  wire [21: 0] root_ppn_i,
     input  wire [ 8: 0] asid_i,
     input  wire [ 1: 0] privilege_lvl_i,
+    input  wire [ 1: 0] ld_st_privilege_lvl_i,
+    input  wire         mxr_i,
+    input  wire         sum_i,
 
     //From processor to icache
     input  wire         i_req_vld_i,         // request.
@@ -88,7 +91,15 @@ module mmu #(
     output wire [31: 0] d_req_paddr_o,
     output wire [31: 0] d_req_data_o,
     output wire         d_req_rw_o,          // 0: data read, 1: data write.
-    output wire [ 3: 0] d_req_byte_enable_o,    
+    output wire [ 3: 0] d_req_byte_enable_o,
+
+    //From icache
+    input  wire         i_rtrn_vld_i,
+    input  wire [31: 0] i_rtrn_data_i,
+
+    //From icache to processor
+    output wire         i_rtrn_vld_o,
+    output wire [31: 0] i_rtrn_data_o,
 
     //From dcache
     input  wire         d_rtrn_vld_i,
@@ -99,11 +110,13 @@ module mmu #(
     output wire [31: 0] d_rtrn_data_o,
 
     //Exception
-    output wire         i_exception_vld_o,
-    output wire [ 3: 0] i_exception_cause_o,
+    output wire         i_exp_vld_o,
+    output wire [ 3: 0] i_exp_cause_o,
+    output wire [31: 0] i_exp_tval_o,
 
-    output wire         d_exception_vld_o,
-    output wire [ 3: 0] d_exception_cause_o
+    output wire         d_exp_vld_o,
+    output wire [ 3: 0] d_exp_cause_o,
+    output wire [31: 0] d_exp_tval_o
 );
     //=======================================================
     // Parameter and Integer
@@ -112,18 +125,45 @@ module mmu #(
     //=======================================================
     // Wire and Reg 
     //=======================================================
+    // -----------------------------------------------------------------------------------------------------------------------------
+    // | ppn_1 | ppn_0 | rsw | D(dirty) | A(accessed) | G(global) | U(user) | X(executable) | W(writable) | R(readable) | V(valid) |
+    // -----------------------------------------------------------------------------------------------------------------------------
+    // |31   20|19   10|9   8|    7     |      6      |     5     |    4    |       3       |      2      |      1      |     0    |
+    // -----------------------------------------------------------------------------------------------------------------------------
     // --------------
     // itlb
     // --------------
+    reg          itlb_req_vld_r;
+    reg  [31: 0] itlb_paddr_r;
+    reg          itlb_content_U_r;
+    reg          itlb_content_R_r;
+    reg          itlb_content_X_r;
+
+    reg          pmp_i_exp_vld;
+    reg  [ 3: 0] i_exp_cause;
+    reg  [31: 0] i_exp_tval;
     wire         hit_itlb;
     wire [31: 0] paddr_itlb;
+    wire [31: 0] itlb_content;
 
 
     // --------------
     // dtlb
     // --------------
+    reg          dtlb_req_vld_r;
+    reg  [31: 0] dtlb_paddr_r;
+    reg          dtlb_content_U_r;
+    reg          dtlb_content_R_r;
+    reg          dtlb_content_W_r;
+    reg          dtlb_content_D_r;
+    reg          dtlb_content_X_r;
+
+    reg          pnp_d_exp_vld;
+    reg  [ 3: 0] d_exp_cause;
+    reg  [31: 0] d_exp_tval;
     wire         hit_dtlb;
     wire [31: 0] paddr_dtlb;       // Memory address.
+    wire [31: 0] dtlb_content;
     
 
     // --------------
@@ -166,27 +206,112 @@ module mmu #(
     // ------------------------------------------------------
     // Instruction
     // ------------------------------------------------------
-    // -------------------
-    // PMA
-
-
+    always@(clk_i) begin
+        if(rst_i) begin
+            itlb_req_vld_r   <= 0;
+            itlb_paddr_r     <= 0;
+            itlb_content_U_r <= 0;
+            itlb_content_R_r <= 0;
+            itlb_content_X_r <= 0;
+        end if(enable_i && hit_itlb) begin
+            itlb_req_vld_r   <= 1;
+            itlb_paddr_r     <= paddr_itlb;
+            itlb_content_U_r <= itlb_content[4];
+            itlb_content_R_r <= itlb_content[1];
+            itlb_content_X_r <= itlb_content[3];
+        end else if(i_rtrn_vld_i || i_exp_vld_o) begin
+            itlb_req_vld_r   <= 0;
+            itlb_paddr_r     <= 0;
+            itlb_content_U_r <= 0;
+            itlb_content_R_r <= 0;
+            itlb_content_X_r <= 0;
+        end
+    end
     // -------------------
     // PMP
+    always@(*) begin
+        if(itlb_req_vld_r && 
+            ((!itlb_content_X_r && !itlb_content_R_r)  || 
+             (privilege_lvl_i == 'd0 && !itlb_content_U_r) || 
+             (privilege_lvl_i == 'd1 &&  itlb_content_U_r)) ) begin
+            pmp_i_exp_vld   = 1'b1;
+        end else begin
+            pmp_i_exp_vld   = 1'b0;
+        end
+    end
+
+    always@(*) begin
+        i_exp_cause = 'd12;
+        i_exp_tval  = i_req_vaddr_i;
+    end
+    
+
+    // -------------------
+    // PMA
 
 
     // ------------------------------------------------------
     // Data
     // ------------------------------------------------------
+    always@(clk_i) begin
+        if(rst_i) begin
+            dtlb_req_vld_r   <= 0;
+            dtlb_paddr_r     <= 0;
+            dtlb_content_U_r <= 0;
+            dtlb_content_R_r <= 0;
+            dtlb_content_W_r <= 0;
+            dtlb_content_D_r <= 0;
+            dtlb_content_X_r <= 0;
+        end if(enable_i && hit_itlb) begin
+            dtlb_req_vld_r   <= 1;
+            dtlb_paddr_r     <= paddr_dtlb;
+            dtlb_content_U_r <= dtlb_content[4];
+            dtlb_content_R_r <= dtlb_content[1];
+            dtlb_content_W_r <= dtlb_content[2];
+            dtlb_content_D_r <= dtlb_content[7];
+            dtlb_content_X_r <= dtlb_content[3];
+        end else if(d_rtrn_vld_o || d_exp_vld_o) begin
+            dtlb_req_vld_r   <= 0;
+            dtlb_paddr_r     <= 0;
+            dtlb_content_U_r <= 0;
+            dtlb_content_R_r <= 0;
+            dtlb_content_W_r <= 0;
+            dtlb_content_D_r <= 0;
+            dtlb_content_X_r <= 0;
+        end
+    end
+
+    // -------------------
+    // PMP
+    always@(*) begin
+        if(dtlb_req_vld_r && 
+            ((!mxr_i && !dtlb_content_R_r) ||
+             (mxr_i  && !dtlb_content_R_r && !dtlb_content_X_r) ||
+             (d_req_rw_i && (!dtlb_content_W_r || !dtlb_content_D_r)) ||
+             (              ld_st_privilege_lvl_i == 0   && !dtlb_content_U_r) || 
+             (sum_i == 0 && ld_st_privilege_lvl_i == 'd1 && dtlb_content_U_r)) ) begin
+                pnp_d_exp_vld   = 1'b1;
+        end else begin
+            pnp_d_exp_vld   = 1'b0;
+        end
+    end
+        
+    always@(*) begin
+        d_exp_tval = d_req_vaddr_i;
+        if(d_req_rw_i) begin
+            d_exp_cause = 'd15;
+        end else begin
+            d_exp_cause = 'd13;
+        end
+    end
+
     // -------------------
     // PMA
 
     // -------------------
-    // PMP
-
-    // -------------------
     // To Arbitrate
-    assign req_vld_d2arb           = hit_dtlb;
-    assign req_paddr_d2arb         = paddr_dtlb;
+    assign req_vld_d2arb           = (enable_i)?(!d_exp_vld_o && dtlb_req_vld_r):d_req_vld_i;
+    assign req_paddr_d2arb         = (enable_i)?dtlb_paddr_r                        :d_req_vaddr_i;
     assign req_data_d2arb          = d_req_data_i;
     assign req_rw_d2arb            = d_req_rw_i;
     assign req_byte_enable_d2arb   = d_req_byte_enable_i;
@@ -195,9 +320,20 @@ module mmu #(
     //=======================================================
     // Output signals interface                       
     //=======================================================
-    assign i_req_vld_o   = hit_itlb;
-    assign i_req_paddr_o = paddr_itlb;
+    assign i_req_vld_o   = (enable_i)?(!i_exp_vld_o && itlb_req_vld_r):i_req_vld_i;
+    assign i_req_paddr_o = (enable_i)?itlb_paddr_r                        :i_req_vaddr_i;
 
+    assign i_rtrn_vld_o  = i_rtrn_vld_i;
+    assign i_rtrn_data_o = i_rtrn_data_i;
+
+    assign i_exp_vld_o   = pmp_i_exp_vld || ptw_i_exp_vld;
+    assign i_exp_cause_o = i_exp_cause;
+    assign i_exp_tval_o  = i_exp_tval; 
+
+    assign d_exp_vld_o   = pnp_d_exp_vld || ptw_d_exp_vld;
+    assign d_exp_cause_o = d_exp_cause;
+    assign d_exp_tval_o  = d_exp_tval; 
+ 
     //=======================================================
     // Other module                      
     //=======================================================
@@ -227,7 +363,9 @@ module mmu #(
         .asid_i(),
         .vaddr_i(i_req_vaddr_i),
         .hit_o(hit_itlb),
-        .paddr_o(paddr_itlb)
+        .paddr_o(paddr_itlb),
+
+        .content_o(itlb_content)
     );
 
     tlb #(
@@ -252,7 +390,9 @@ module mmu #(
         .asid_i(),
         .vaddr_i(d_req_vaddr_i),
         .hit_o(hit_dtlb),
-        .paddr_o(paddr_dtlb)
+        .paddr_o(paddr_dtlb),
+
+        .content_o(dtlb_content)
     );
     
     //-----------------------------------------------
@@ -299,52 +439,13 @@ module mmu #(
         .privilege_lvl_i(privilege_lvl_i),
 
         // Eception
-        .exception_vld_o(),
-        .exception_cause_o()
+        .i_exp_vld_o(ptw_i_exp_vld),
+        .d_exp_vld_o(ptw_d_exp_vld)
     );
 
     // ------------------------------------------------------
     // Arbitrate
     // ------------------------------------------------------
-    // reg          req_vld_temp_r;
-    // wire         req_vld_temp = req_vld_temp_r && ~rtrn_vld_temp;
-    // wire [31: 0] req_addr_temp = 'd0;
-    // wire         req_rw_temp = 'd0;
-    // wire [ 3: 0] req_byte_enable_temp = 'd15;
-
-    // wire         rtrn_vld_temp;
-    // wire [31: 0] rtrn_data_temp;
-
-    // reg [31: 0] cnt_temp;
-
-    // always@(posedge clk_i) begin
-    //     if(rst_i) begin
-    //         req_vld_temp_r <= 'b0;
-    //     end else begin
-    //         if(req_vld_temp_r == 'b1) begin
-    //             if(rtrn_vld_temp)
-    //                 req_vld_temp_r <= 'd0;
-    //             else
-    //                 req_vld_temp_r <= 'd1;
-    //         end else begin
-    //             if(cnt_temp == 'd1000)
-    //                 req_vld_temp_r <= 'd1;
-    //         end
-    //     end
-    // end
-
-    // always@(posedge clk_i) begin
-    //     if(rst_i) begin
-    //         cnt_temp <= 'd0;
-    //     end else begin
-    //         if(cnt_temp == 'd1000)
-    //             cnt_temp <= 'd0;
-    //         else
-    //             cnt_temp <= cnt_temp + 1;
-    //     end
-    // end
-
-
     mmu_arb #(
     ) MMU_arb (
         .clk_i(clk_i),
@@ -374,15 +475,6 @@ module mmu #(
 
         .ptw_rtrn_vld_o(rtrn_vld_arb2ptw),
         .ptw_rtrn_data_o(rtrn_data_arb2ptw),
-
-        // .ptw_req_vld_i(req_vld_temp),    
-        // .ptw_req_paddr_i(req_addr_temp),    
-        // .ptw_req_data_i('d0),
-        // .ptw_req_rw_i(req_rw_temp),      
-        // .ptw_req_byte_enable_i(req_byte_enable_temp),
-
-        // .ptw_rtrn_vld_o(rtrn_vld_temp),
-        // .ptw_rtrn_data_o(rtrn_data_temp),
 
         //To dcache
         .d_req_vld_o(d_req_vld_o),    

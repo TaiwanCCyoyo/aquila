@@ -165,9 +165,21 @@ wire [WORD_BITS-1 : 0] line_offset;
 wire [LINE_BITS-1 : 0] line_index;
 wire [TAG_BITS-1  : 0] tag;
 
-assign line_offset = p_addr_i[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS];
-assign line_index  = p_addr_i[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS];
-assign tag         = p_addr_i[ADDR_WIDTH - 1 : NONTAG_BITS];
+reg  [ADDR_WIDTH-1 : 0] p_addr_r;
+
+always@(posedge clk_i) begin
+    if(rst_i) begin
+        p_addr_r <= 0;
+    end else if(p_req_i) begin
+        p_addr_r <= p_addr_i;
+    end else begin
+        p_addr_r <= 0;
+    end
+end
+
+assign line_offset = (p_req_i)?p_addr_i[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS]:p_addr_r[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS];
+assign line_index  = (p_req_i)?p_addr_i[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS]:p_addr_r[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS];
+assign tag         = (p_req_i)?p_addr_i[ADDR_WIDTH - 1 : NONTAG_BITS]:p_addr_r[ADDR_WIDTH - 1 : NONTAG_BITS];
 
 //====================================================
 // D-cache Finite State Machine
@@ -411,7 +423,7 @@ begin
     else if (S == WbtoMem) // the dirty data addr
         m_addr_o <= {c_tag_o[victim_sel], line_index, 3'b0, 2'b0};
     else if (S == RdfromMem) // the miss data addr
-        m_addr_o <= {p_addr_i[ADDR_WIDTH-1: 5], 3'b0, 2'b0};
+        m_addr_o <= {p_addr_r[ADDR_WIDTH-1: 5], 3'b0, 2'b0};
     else
         m_addr_o <= 0;
 end
