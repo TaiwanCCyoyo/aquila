@@ -101,12 +101,16 @@ module decode #(parameter DATA_WIDTH = 32)
     output reg                    cond_branch_hit_EXE_o,
     output reg                    cond_branch_result_EXE_o,
     output reg                    uncond_branch_hit_EXE_o,
-
-    // to CSR
     output reg                    is_csr_instr_o,
-    output reg [11: 0]            csr_addr_o,
     output reg [4: 0]             csr_imm_o,
     output reg                    instr_valid_o,
+
+
+    // to CSR
+    output wire [11: 0]            csr_addr_o,
+
+    //From CSR
+    input  wire [DATA_WIDTH-1 : 0] csr_data_i,
 
     // to Execute_Memory_Pipeline
     output reg                    regfile_we_o,
@@ -123,6 +127,9 @@ module decode #(parameter DATA_WIDTH = 32)
     output reg [4: 0]             rs2_addr2fwd_o,
     output reg [DATA_WIDTH-1 : 0] rs1_data2fwd_o,
     output reg [DATA_WIDTH-1 : 0] rs2_data2fwd_o,
+    output reg [11 :0]            csr_addr2fwd_o,
+    output reg [DATA_WIDTH-1 : 0] csr_data2fwd_o,
+
 
     //From CSR
     input  wire                    tvm_i,
@@ -161,7 +168,6 @@ wire                    is_branch;
 wire                    is_jal;
 wire                    is_jalr;
 wire                    is_csr_instr;
-wire [11: 0]            csr_addr;
 wire [4: 0]             csr_imm;
 
 /* *******************************************************************************
@@ -408,6 +414,7 @@ assign is_branch = rv32_branch;
 assign rd_addr = rv32_instr[11: 7];
 assign rs1_addr_o = rv32_instr[19: 15];
 assign rs2_addr_o = rv32_instr[24: 20];
+assign csr_addr_o = rv32_instr[31: 20];
 
 assign mem_input_sel = rv32_funct3[1: 0];         // {00: b}, {01: h}, {10: w}
 assign mem_load_ext_sel = rv32_funct3[2];         // {0: signed extension},
@@ -418,7 +425,6 @@ assign operation_sel = (rv32_lui | rv32_auipc) ?  // LUI and AUIPC use alu
 assign shift_sel = rv32_funct7_0100000;           // {0: logic}, {1: arithmetic}
 
 assign is_csr_instr = rv32_csr;
-assign csr_addr = rv32_instr[31: 20];
 assign csr_imm = rv32_instr[19: 15];
 
 always @(*)
@@ -498,17 +504,20 @@ begin
         rs1_addr2fwd_o <= 0;
         rs2_addr2fwd_o <= 0;
         is_csr_instr_o <= 0;
-        csr_addr_o <= 0;
         csr_imm_o <= 0;
         instr_valid_o <= 0;
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
+
+        
         sys_jump_o <= 0;
         sys_jump_csr_addr_o <= 0;
         exp_vld_o   <= 0;
         exp_cause_o <= 0;
         exp_tval_o <= 0;
+        csr_data2fwd_o <= 0;
+        csr_addr2fwd_o <= 0;
     end
     else if (stall_i)
     begin
@@ -535,17 +544,19 @@ begin
         rs1_addr2fwd_o <= rs1_addr2fwd_o;
         rs2_addr2fwd_o <= rs2_addr2fwd_o;
         is_csr_instr_o <= is_csr_instr_o;
-        csr_addr_o <= csr_addr_o;
         csr_imm_o <= csr_imm_o;
         instr_valid_o <= instr_valid_o;
         cond_branch_hit_EXE_o <= cond_branch_hit_EXE_o;
         cond_branch_result_EXE_o <= cond_branch_result_EXE_o;
         uncond_branch_hit_EXE_o <= uncond_branch_hit_EXE_o;
+
         sys_jump_o <= sys_jump_o;
         sys_jump_csr_addr_o <= sys_jump_csr_addr_o;
         exp_vld_o   <= exp_vld_o;
         exp_cause_o <= exp_cause_o;
         exp_tval_o <= exp_tval_o;
+        csr_data2fwd_o <= csr_data2fwd_o;
+        csr_addr2fwd_o <= csr_addr2fwd_o;
     end
     else if (flush_i)
     begin // nop instruction = 0000_0000_0000_0000_0000_0000_0001_0011 = 32'h13
@@ -572,17 +583,19 @@ begin
         rs1_addr2fwd_o <= 0;
         rs2_addr2fwd_o <= 0;
         is_csr_instr_o <= 0;
-        csr_addr_o <= 0;
         csr_imm_o <= 0;
         instr_valid_o <= 0;
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
+
         sys_jump_o <= 0;
         sys_jump_csr_addr_o <= 0;
         exp_vld_o   <= 0;
         exp_cause_o <= 0;
         exp_tval_o <= 0;
+        csr_data2fwd_o <= 0;
+        csr_addr2fwd_o <= 0;
     end
     else if(exp_vld)
     begin
@@ -609,17 +622,19 @@ begin
         rs1_addr2fwd_o <= 0;
         rs2_addr2fwd_o <= 0;
         is_csr_instr_o <= 0;
-        csr_addr_o <= 0;
         csr_imm_o <= 0;
         instr_valid_o <= 0;
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
+
         sys_jump_o <= 0;
         sys_jump_csr_addr_o <= 0;
         exp_vld_o   <= exp_vld;
         exp_cause_o <= exp_cause;
         exp_tval_o <= exp_tval;
+        csr_data2fwd_o <= 0;
+        csr_addr2fwd_o <= 0;
     end
     else
     begin
@@ -646,17 +661,19 @@ begin
         rs1_addr2fwd_o <= rs1_addr_o;
         rs2_addr2fwd_o <= rs2_addr_o;
         is_csr_instr_o <= is_csr_instr;
-        csr_addr_o <= csr_addr;
         csr_imm_o <= csr_imm;
         instr_valid_o <= instr_valid_i;
         cond_branch_hit_EXE_o <= cond_branch_hit_ID_i;
         cond_branch_result_EXE_o <= cond_branch_result_ID_i;
         uncond_branch_hit_EXE_o <= uncond_branch_hit_ID_i;
+
         sys_jump_o <= sys_jump;
         sys_jump_csr_addr_o <= sys_jump_csr_addr;
         exp_vld_o   <= exp_vld_i;
         exp_cause_o <= exp_cause_i;
         exp_tval_o <= exp_tval_i;
+        csr_data2fwd_o <= csr_data_i;
+        csr_addr2fwd_o <= csr_addr_o;
     end
 end
 

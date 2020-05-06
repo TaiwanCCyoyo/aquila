@@ -59,51 +59,53 @@
 
 module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
 (
-    input                     clk_i,
-    input                     rst_i,
+    input  wire                    clk_i,
+    input  wire                    rst_i,
 
-    // from Decode_Eexcute_Pipeline
-    input                     is_csr_instr_i,
-    input [11: 0]             csr_addr_i,
-    input [2: 0]              csr_op_i,
-    input [4: 0]              csr_imm_i,
+    // from Decode
+    input  wire [11: 0]            csr_rd_addr_i,
 
-    // from RegisterFile
-    input [DATA_WIDTH-1 : 0]  rs1_data_i,
+    // to Fowarding
+    output wire [DATA_WIDTH-1 : 0] csr_data_o,
+
+    //from Memory_WriteBack_Pipeline
+    input  wire                    csr_we_i,
+    input  wire [11: 0]            csr_we_addr_i,
+    input  wire [DATA_WIDTH-1 : 0] csr_we_data_i,
+
 
     // Interrupt requests.
-    input                     ext_irq_i, //Machine external interrupt
-    input                     tmr_irq_i, //Machine timer interrupt
-    input                     sft_irq_i, //Machine software interrupt
-    output                    irq_taken_o,
-    output [ADDR_WIDTH-1 : 0] PC_handler_o,
-    input  [ADDR_WIDTH-1 : 0] nxt_unwb_PC_i,
+    input  wire                    ext_irq_i, //Machine external interrupt
+    input  wire                    tmr_irq_i, //Machine timer interrupt
+    input  wire                    sft_irq_i, //Machine software interrupt
+    output wire                    irq_taken_o,
+    output wire [ADDR_WIDTH-1 : 0] PC_handler_o,
+    input  wire [ADDR_WIDTH-1 : 0] nxt_unwb_PC_i,
 
-    // to Execute_Memory_Pipeline
-    output [DATA_WIDTH-1 : 0] csr_data_o,
+    
 
     // System Jump operation
-    input                     sys_jump_i,
-    input  [ 1: 0]            sys_jump_csr_addr_i,
-    output                    sys_jump_o,
-    output [DATA_WIDTH-1 : 0] sys_jump_csr_data_o,
+    input  wire                    sys_jump_i,
+    input  wire [ 1: 0]            sys_jump_csr_addr_i,
+    output wire                    sys_jump_o,
+    output wire [DATA_WIDTH-1 : 0] sys_jump_csr_data_o,
 
     //
-    output wire [ 1: 0]       privilege_lvl_o,
-    output wire               tvm_o,
-      
-    //MMU
-    output wire               mmu_enable_o,
-    output wire               ld_st_privilege_lvl_o,
-    output wire [21: 0]       root_ppn_o,
-    output wire [ 8: 0]       asid_o,
-    output wire               mxr_o,
-    output wire               sum_o,
+    output wire [ 1: 0]            privilege_lvl_o,
+    output wire                    tvm_o,
+        
+    //MMU     
+    output wire                    mmu_enable_o,
+    output wire                    ld_st_privilege_lvl_o,
+    output wire [21: 0]            root_ppn_o,
+    output wire [ 8: 0]            asid_o,
+    output wire                    mxr_o,
+    output wire                    sum_o,
 
-    // Exception requests
-    input wire                exp_vld_i,
-    input wire [ 3: 0]        exp_cause_i,
-    input wire [31: 0]        exp_tval_i
+    // Exception requests     
+    input wire                     exp_vld_i,
+    input wire [ 3: 0]             exp_cause_i,
+    input wire [31: 0]             exp_tval_i
 );
 
 //==============================================================================================
@@ -290,9 +292,6 @@ wire is_sret = (sys_jump_csr_addr_i == `S_MODE);
 wire is_uret = (sys_jump_csr_addr_i == `U_MODE); // noy implement
 
 reg  [DATA_WIDTH-1 : 0] csr_data;
-wire [DATA_WIDTH-1 : 0] csr_inputA = csr_data;
-wire [DATA_WIDTH-1 : 0] csr_inputB = csr_op_i[2] ? {27'b0, csr_imm_i} : rs1_data_i;
-reg  [DATA_WIDTH-1 : 0] updated_csr_data;
 
 //Interrupt
 reg          trap_to_M;
@@ -350,16 +349,16 @@ begin
             mstatus_r <= {mstatus_r[31:6], 1'b1,mstatus_r[4:2], mstatus_r[5],mstatus_r[0]};// SIE <= SPIE, SPIE <= 1
         end
     end
-    else if (is_csr_instr_i)
+    else if (csr_we_i)
     begin
-        if(csr_addr_i == `CSR_MSTATUS)
+        if(csr_we_addr_i == `CSR_MSTATUS)
         begin
-            //mstatus_r <= {mstatus_r[31:8],updated_csr_data[7], mstatus_r[6:4], updated_csr_data[3], mstatus_r[2:0]};//only update PMIE MIE
-            mstatus_r <= updated_csr_data;
+            //mstatus_r <= {mstatus_r[31:8],csr_we_data_i[7], mstatus_r[6:4], csr_we_data_i[3], mstatus_r[2:0]};//only update PMIE MIE
+            mstatus_r <= csr_we_data_i;
         end
-        else if(csr_addr_i == `CSR_SSTATUS)
+        else if(csr_we_addr_i == `CSR_SSTATUS)
         begin
-            mstatus_r <= {updated_csr_data[31], mstatus_r[30:20], updated_csr_data[19:18], mstatus_r[17], updated_csr_data[16:13], mstatus_r[12:9], updated_csr_data[8], mstatus_r[7:6], updated_csr_data[5:4], mstatus_r[3:2], updated_csr_data[1:0]};
+            mstatus_r <= {csr_we_data_i[31], mstatus_r[30:20], csr_we_data_i[19:18], mstatus_r[17], csr_we_data_i[16:13], mstatus_r[12:9], csr_we_data_i[8], mstatus_r[7:6], csr_we_data_i[5:4], mstatus_r[3:2], csr_we_data_i[1:0]};
         end
     end
 end
@@ -378,9 +377,9 @@ begin
     begin
         mie_r <= 32'b0;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MIE)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MIE)
     begin
-        mie_r <= updated_csr_data;
+        mie_r <= csr_we_data_i;
     end
 end
 
@@ -398,10 +397,10 @@ begin
     begin
         mip_r <= 32'b0;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MIE)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MIE)
     begin
         //only SEIP, UEIP, STIP, UTIP, SSIP, USIP writable
-        mip_r <= {22'b0, updated_csr_data[9:8], 2'b0, updated_csr_data[5:4], 2'b0, updated_csr_data[1:0]};
+        mip_r <= {22'b0, csr_we_data_i[9:8], 2'b0, csr_we_data_i[5:4], 2'b0, csr_we_data_i[1:0]};
     end
     else
     begin
@@ -427,9 +426,9 @@ begin
     begin
         mtvec_r <= 32'h0; // the entry point of timer ISR
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MTVEC)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MTVEC)
     begin
-        mtvec_r <= updated_csr_data;
+        mtvec_r <= csr_we_data_i;
     end
 end
 
@@ -442,9 +441,9 @@ begin
     begin
         mscratch_r <= 32'b0;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MSCRATCH)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MSCRATCH)
     begin
-        mscratch_r <= updated_csr_data;
+        mscratch_r <= csr_we_data_i;
     end
 end
 
@@ -461,9 +460,9 @@ begin
     begin
         mepc_r <= nxt_unwb_PC_i;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MEPC)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MEPC)
     begin
-        mepc_r <= updated_csr_data;
+        mepc_r <= csr_we_data_i;
     end
 end
 
@@ -485,9 +484,9 @@ begin
     begin
         mcause_r <= mcause_d;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MCAUSE)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MCAUSE)
     begin
-        mcause_r <= updated_csr_data;
+        mcause_r <= csr_we_data_i;
     end
 end
 
@@ -526,9 +525,9 @@ begin
             mtval_r <= exp_tval_i;
         end
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MTVAL)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MTVAL)
     begin
-        mtval_r <= updated_csr_data;
+        mtval_r <= csr_we_data_i;
     end
 end
 
@@ -542,9 +541,9 @@ begin
     begin
         medeleg_r <= 32'b0;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MEDELEG)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MEDELEG)
     begin
-        medeleg_r <= updated_csr_data;
+        medeleg_r <= csr_we_data_i;
     end
 end
 
@@ -557,9 +556,9 @@ begin
     begin
         mideleg_r <= 32'b0;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_MEDELEG)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MEDELEG)
     begin
-        mideleg_r <= updated_csr_data;
+        mideleg_r <= csr_we_data_i;
     end
 end
 
@@ -572,18 +571,18 @@ begin
     begin
         mcycle_r    <= 64'b0;
     end
-    else if (is_csr_instr_i)
+    else if (csr_we_i)
     begin
-        case (csr_addr_i)
+        case (csr_we_addr_i)
             `CSR_MCYCLE :
-                mcycle_r[31 : 0] <= updated_csr_data;
+                mcycle_r[31 : 0] <= csr_we_data_i;
             `CSR_MCYCLEH :
-                mcycle_r[63: 32] <= updated_csr_data;
+                mcycle_r[63: 32] <= csr_we_data_i;
             //Note
             `CSR_CYCLE :
-                mcycle_r[31 : 0] <= updated_csr_data;
+                mcycle_r[31 : 0] <= csr_we_data_i;
             `CSR_CYCLEH :
-                mcycle_r[63: 32] <= updated_csr_data;
+                mcycle_r[63: 32] <= csr_we_data_i;
         endcase
     end
     else
@@ -642,9 +641,9 @@ begin
     begin
         satp_r <= 32'b0;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_SATP)
+    else if (csr_we_i && csr_we_addr_i == `CSR_SATP)
     begin
-        satp_r <= updated_csr_data;
+        satp_r <= csr_we_data_i;
     end
 end
 
@@ -663,9 +662,9 @@ begin
     begin
         stvec_r <= 32'h0; // the entry point of timer ISR
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_STVEC)
+    else if (csr_we_i && csr_we_addr_i == `CSR_STVEC)
     begin
-        stvec_r <= updated_csr_data;
+        stvec_r <= csr_we_data_i;
     end
 end
 
@@ -678,9 +677,9 @@ begin
     begin
         sscratch_r <= 32'b0;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_SSCRATCH)
+    else if (csr_we_i && csr_we_addr_i == `CSR_SSCRATCH)
     begin
-        sscratch_r <= updated_csr_data;
+        sscratch_r <= csr_we_data_i;
     end
 end
 
@@ -697,9 +696,9 @@ begin
     begin
         sepc_r <= nxt_unwb_PC_i;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_SEPC)
+    else if (csr_we_i && csr_we_addr_i == `CSR_SEPC)
     begin
-        sepc_r <= updated_csr_data;
+        sepc_r <= csr_we_data_i;
     end
 end
 
@@ -721,9 +720,9 @@ begin
     begin
         scause_r <= scause_d;
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_SCAUSE)
+    else if (csr_we_i && csr_we_addr_i == `CSR_SCAUSE)
     begin
-        scause_r <= updated_csr_data;
+        scause_r <= csr_we_data_i;
     end
 end
 
@@ -755,9 +754,9 @@ begin
             stval_r <= exp_tval_i;
         end
     end
-    else if (is_csr_instr_i && csr_addr_i == `CSR_STVAL)
+    else if (csr_we_i && csr_we_addr_i == `CSR_STVAL)
     begin
-        stval_r <= updated_csr_data;
+        stval_r <= csr_we_data_i;
     end
 end
 
@@ -785,7 +784,7 @@ end
 
 always @( * )
 begin
-    case (csr_addr_i)
+    case (csr_rd_addr_i)
         `CSR_MSTATUS:
             csr_data = mstatus_r;
         `CSR_MIE:
@@ -850,22 +849,7 @@ begin
             csr_data = 0;
     endcase
 end
-      
 
-
-always @( * )
-begin
-    case (csr_op_i[1: 0])
-        `CSR_RW:
-            updated_csr_data = csr_inputB;
-        `CSR_RS:
-            updated_csr_data = csr_inputA | csr_inputB;
-        `CSR_RC:
-            updated_csr_data = csr_inputA & ~csr_inputB;
-        default:
-            updated_csr_data = csr_inputA;
-    endcase
-end
 // =============================================================================================
 // 
 //
@@ -995,7 +979,8 @@ end
 // =============================================================================================
 //  Output signals interface
 //
-assign csr_data_o = csr_data;
+assign csr_data_o          = csr_data;
+
 assign sys_jump_o          = sys_jump_i;
 assign sys_jump_csr_data_o = is_mret ? mepc_r :
                              is_sret ? sepc_r :

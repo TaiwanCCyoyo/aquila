@@ -113,7 +113,7 @@ assign branch_flush = branch_taken;
 //  Output signals
 //
 assign flush2fet_o = branch_flush | sys_jump_i;
-assign flush2dec_o = branch_flush | is_load_use | illegal_instr_i;
+assign flush2dec_o = branch_flush | is_load_use | illegal_instr_i | sys_jump_i;
 assign flush2exe_o = sys_jump_i;
 assign flush2mem_o = sys_jump_i;
 assign stall_from_hazard_o = is_load_use;

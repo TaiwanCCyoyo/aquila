@@ -145,7 +145,7 @@ wire [ 2 : 0]           dec_regfile_sel2exe, dec_operation_sel2exe;
 wire [11 : 0]           dec_csr_addr2csr;
 
 wire                    alu_muldiv_sel2exe, shift_sel2exe, is_branch2exe,
-                        is_jal2exe, is_jalr2exe, is_csr_instr2csr;
+                        is_jal2exe, is_jalr2exe;
 
 // Execute stage signals.
 wire                    exe_branch_taken;
@@ -158,9 +158,6 @@ wire [DATA_WIDTH-1 : 0] exe_rs2_data2mem, exe_addr2mem, exe_p_data;
 wire [ 4 : 0]           exe_rd_addr2mem_wb;
 wire [ 1 : 0]           exe_input_sel2mem;
 wire [ 2 : 0]           exe_regfile_input_sel2mem_wb;
-
-// Control Status Registers (CSR).
-wire [DATA_WIDTH-1 : 0] csr_data2exe;
 
 // Memory Access.
 wire [DATA_WIDTH-1 : 0] data_o, data2mem_wb;
@@ -190,6 +187,22 @@ wire irq_taken;
 wire [DATA_WIDTH-1 : 0] PC_handler;
 
 wire [ 1: 0] priv_lvl;
+
+// ----------------------
+// fowarding <-> decode
+// ----------------------
+wire [11: 0]            csr_addr_dec2fwd;
+wire [DATA_WIDTH-1 : 0] csr_data_dec2fwd;
+
+// ----------------------
+// fowarding <-> execute
+// ----------------------
+wire [DATA_WIDTH-1 : 0] csr_fwd;
+
+// ----------------------
+// csr <-> exe
+// ----------------------
+
 
 // ----------------------
 // csr <-> mmu
@@ -238,6 +251,8 @@ wire [31: 0] exp_tval_fet2dec;
 // ----------------------
 // decode <-> execute
 // ----------------------
+wire         csr_we_dec2exe;
+
 wire         sys_jump_dec2exe;
 wire [ 1: 0] sys_jump_csr_addr_dec2exe;
 wire         exp_vld_dec2exe;
@@ -253,6 +268,9 @@ wire         exp_vld_exe2mem;
 wire [ 3: 0] exp_cause_exe2mem;
 wire [31: 0] exp_tval_exe2mem;
 wire [31: 0] instruction_pc_exe2mem;
+wire         csr_we_exe2mem_wb;
+wire [31: 0] csr_we_addr_exe2mem_wb;
+wire [31: 0] csr_we_data_exe2mem_wb;
 
 // ------------------------
 // memory_access <-> mem_wb
@@ -274,11 +292,16 @@ wire         exp_vld_mem_wb2csr;
 wire [ 3: 0] exp_cause_mem_wb2csr;
 wire [31: 0] exp_tval_mem_wb2csr;
 wire [31: 0] instruction_pc_mem_wb2csr;
+wire         csr_we_mem_wb2csr;
+wire [31: 0] csr_we_addr_mem_wb2csr;
+wire [31: 0] csr_we_data_mem_wb2csr;
 
 // ----------------------
 // csr <-> decode
 // ----------------------
 wire         tvm_csr2dec;
+wire [31: 0]  csr_data2dec;
+
 
 // Exception
 // wire mem_memory_alignment_exception2mem_wb;
@@ -420,23 +443,32 @@ forwarding_unit Forwarding_Unit(
     // from Decode_Execute_Pipeline
     .rs1_addr_i(dec_rs1_addr2fwd),
     .rs2_addr_i(dec_rs2_addr2fwd),
+    .csr_addr_i(csr_addr_dec2fwd),
     .rs1_data_i(dec_rs1_data2fwd),
     .rs2_data_i(dec_rs2_data2fwd),
+    .csr_data_i(csr_data_dec2fwd),
 
     // from Execute_Memory_Pipeline
     .regfile_we_EXE_MEM_i(exe_regfile_we2mem_wb),
     .rd_addr_EXE_MEM_i(exe_rd_addr2mem_wb),
     .regfile_input_sel_EXE_MEM_i(exe_regfile_input_sel2mem_wb),
     .p_data_EXE_MEM_i(exe_p_data),
+    .csr_addr_EXE_MEM_i(csr_we_addr_exe2mem_wb),
+    .csr_we_EXE_MEM_i(csr_we_exe2mem_wb),
+    .csr_data_EXE_MEM_i(csr_we_data_exe2mem_wb),
 
     // from Memory_Writeback_Pipeline
     .regfile_we_MEM_WB_i(rd_we2wb),
     .rd_addr_MEM_WB_i(rd_addr2wb),
     .rd_data_MEM_WB_i(rd_data2wb),
+    .csr_addr_MEM_WB_i(csr_we_addr_mem_wb2csr),
+    .csr_we_MEM_WB_i(csr_we_mem_wb2csr),
+    .csr_data_MEM_WB_i(csr_we_data_mem_wb2csr),
 
     // to Execute, CSR, Execute_Memory_Pipeline
     .rs1_fwd_o(rs1_fwd),
-    .rs2_fwd_o(rs2_fwd)
+    .rs2_fwd_o(rs2_fwd),
+    .csr_fwd_o(csr_fwd)
 );
 
 // =============================================================================
@@ -646,6 +678,9 @@ decode Decode(
     .cond_branch_hit_EXE_o(cond_branch_hit_EXE),
     .cond_branch_result_EXE_o(cond_branch_result_EXE),
     .is_jalr_o(is_jalr2exe),
+    .is_csr_instr_o(csr_we_dec2exe),
+    .csr_imm_o(dec_csr_imm2csr),
+    .instr_valid_o(dec_instr_valid2csr),
 
     // to Execute, Cond_Branch_Predictor
     .is_branch_o(is_branch2exe),
@@ -654,10 +689,10 @@ decode Decode(
     .is_jal_o(is_jal2exe),
 
     // to CSR
-    .is_csr_instr_o(is_csr_instr2csr),
     .csr_addr_o(dec_csr_addr2csr),
-    .csr_imm_o(dec_csr_imm2csr),
-    .instr_valid_o(dec_instr_valid2csr),
+
+    //From CSR
+    .csr_data_i(csr_data2dec),
 
     // to Execute_Memory_Pipeline
     .regfile_we_o(dec_regfile_we2exe),
@@ -678,6 +713,9 @@ decode Decode(
     .rs2_addr2fwd_o(dec_rs2_addr2fwd),
     .rs1_data2fwd_o(dec_rs1_data2fwd),
     .rs2_data2fwd_o(dec_rs2_data2fwd),
+    .csr_addr2fwd_o(csr_addr_dec2fwd),
+    .csr_data2fwd_o(csr_data_dec2fwd),
+
 
     //From CSR
     .tvm_i(tvm_csr2dec),
@@ -699,6 +737,7 @@ decode Decode(
 );
 
 // =============================================================================
+
 execute Execute(
     // Top-level system signals
     .clk_i(clk_i),
@@ -734,12 +773,14 @@ execute Execute(
     .mem_load_ext_sel_i(dec_load_ext_sel2exe),
     .rd_addr_i(dec_rd_addr2exe),
 
-    // Signal from the CSR.
-    .csr_data_i(csr_data2exe),
+    .csr_imm_i(dec_csr_imm2csr),
+    .csr_we_i(csr_we_dec2exe),
+    .csr_we_addr_i(csr_addr_dec2fwd),
 
     // Signals from the Forwarding Unit.
     .rs1_data_i(rs1_fwd),
     .rs2_data_i(rs2_fwd),
+    .csr_data_i(csr_fwd),
 
     // Signal to the Program Counter Unit.
     .pc_o(exe_pc2pc),
@@ -769,6 +810,9 @@ execute Execute(
     .regfile_input_sel_o(exe_regfile_input_sel2mem_wb),
     .rd_addr_o(exe_rd_addr2mem_wb),
     .p_data_o(exe_p_data),
+    .csr_we_o(csr_we_exe2mem_wb),
+    .csr_we_addr_o(csr_we_addr_exe2mem_wb),
+    .csr_we_data_o(csr_we_data_exe2mem_wb),
 
     // Signals to Memory Writeback.
     .mem_load_ext_sel_o(exe_load_ext_sel2mem_wb),
@@ -847,6 +891,9 @@ writeback Writeback(
     .mem_load_ext_sel_i(exe_load_ext_sel2mem_wb),
     .mem_addr_alignment_i(exe_addr2mem[1: 0]),
     .p_data_i(exe_p_data),
+    .csr_we_i(csr_we_exe2mem_wb),
+    .csr_we_addr_i(csr_we_addr_exe2mem_wb),
+    .csr_we_data_i(csr_we_data_exe2mem_wb),
 
     // from D-memory
     .mem_data_i(d_rtrn_data_mmu2mem_wb),
@@ -869,6 +916,9 @@ writeback Writeback(
     .instruction_pc_i(instruction_pc_mem2mem_wb),
 
     //To CSR
+    .csr_we_o(csr_we_mem_wb2csr),
+    .csr_we_addr_o(csr_we_addr_mem_wb2csr),
+    .csr_we_data_o(csr_we_data_mem_wb2csr),
     .exp_vld_o(exp_vld_mem_wb2csr),
     .exp_cause_o(exp_cause_mem_wb2csr),
     .exp_tval_o(exp_tval_mem_wb2csr),
@@ -882,17 +932,16 @@ CSR(
     .clk_i(clk_i),
     .rst_i(rst_i),
 
-    // from Decode_Execute_Pipeline
-    .is_csr_instr_i(is_csr_instr2csr),
-    .csr_addr_i(dec_csr_addr2csr),
-    .csr_op_i(dec_operation_sel2exe),
-    .csr_imm_i(dec_csr_imm2csr),
+    // from Decode
+    .csr_rd_addr_i(dec_csr_addr2csr),
 
-    // from Forwarding_Unit
-    .rs1_data_i(rs1_fwd),
+    // to Decode
+    .csr_data_o(csr_data2dec),
 
-    // to Execute_Memory_Pipeline
-    .csr_data_o(csr_data2exe),
+    //from Memory_WriteBack_Pipeline
+    .csr_we_i(csr_we_mem_wb2csr),
+    .csr_we_addr_i(csr_we_addr_mem_wb2csr),
+    .csr_we_data_i(csr_we_data_mem_wb2csr),
 
     // Interrupt
     .ext_irq_i(ext_irq_i),

@@ -58,75 +58,80 @@
 module execute #(parameter DATA_WIDTH = 32)
 (
     // System Signals
-    input                         clk_i,
-    input                         rst_i,
+    input  wire                    clk_i,
+    input  wire                    rst_i,
 
     // Processor pipeline flush signal.
-    input                         flush_i,
+    input  wire                    flush_i,
 
     // Signal from the Program_Counter Unit.
-    input  [DATA_WIDTH-1 : 0]     pc_i,
+    input  wire [DATA_WIDTH-1 : 0] pc_i,
 
     // Pipeline stall signal.
-    input                         stall_i,
+    input  wire                    stall_i,
 
     // Signals from the Decode stage.
-    input  [DATA_WIDTH-1 : 0]     imm_i,
-    input  [ 1: 0]                inputA_sel_i,
-    input  [ 1: 0]                inputB_sel_i,
-    input  [ 2: 0]                operation_sel_i,
-    input                         alu_muldiv_sel_i,
-    input                         shift_sel_i,
-    input                         is_branch_i,
-    input                         is_jal_i,
-    input                         is_jalr_i,
-    input                         cond_branch_hit_EXE_i,
-    input                         cond_branch_result_EXE_i,
+    input  wire [DATA_WIDTH-1 : 0] imm_i,
+    input  wire [ 1: 0]            inputA_sel_i,
+    input  wire [ 1: 0]            inputB_sel_i,
+    input  wire [ 2: 0]            operation_sel_i,
+    input  wire                    alu_muldiv_sel_i,
+    input  wire                    shift_sel_i,
+    input  wire                    is_branch_i,
+    input  wire                    is_jal_i,
+    input  wire                    is_jalr_i,
+    input  wire                    cond_branch_hit_EXE_i,
+    input  wire                    cond_branch_result_EXE_i,
 
-    input                         regfile_we_i,
-    input  [2: 0]                 regfile_input_sel_i,
-    input                         mem_we_i,
-    input                         mem_re_i,
-    input  [1: 0]                 mem_input_sel_i,
-    input                         mem_load_ext_sel_i,
-    input  [4: 0]                 rd_addr_i,
+    input  wire                    regfile_we_i,
+    input  wire [2: 0]             regfile_input_sel_i,
+    input  wire                    mem_we_i,
+    input  wire                    mem_re_i,
+    input  wire [1: 0]             mem_input_sel_i,
+    input  wire                    mem_load_ext_sel_i,
+    input  wire [4: 0]             rd_addr_i,
 
-    // Signal from the CSR.
-    input  [DATA_WIDTH-1 : 0]     csr_data_i,
+    input  wire [4: 0]             csr_imm_i,
+    input  wire                    csr_we_i,
+    input  wire [11: 0]            csr_we_addr_i,
 
     // Signals from the Forwarding Unit.
-    input  [DATA_WIDTH-1 : 0]     rs1_data_i,
-    input  [DATA_WIDTH-1 : 0]     rs2_data_i,
+    input  wire [DATA_WIDTH-1 : 0] rs1_data_i,
+    input  wire [DATA_WIDTH-1 : 0] rs2_data_i,
+    input  wire [DATA_WIDTH-1 : 0] csr_data_i,
 
     // Signal to the Program Counter Unit.
-    output [DATA_WIDTH-1 : 0]     pc_o,
-    output [DATA_WIDTH-1 : 0]     branch_target_addr_o,
+    output wire [DATA_WIDTH-1 : 0] pc_o,
+    output wire [DATA_WIDTH-1 : 0] branch_target_addr_o,
 
     // Singnals to the Pipeline Control and the Branch Prediction units.
-    output                        branch_taken_o,
-    output                        cond_branch_misprediction_o,
+    output wire                    branch_taken_o,
+    output wire                    cond_branch_misprediction_o,
 
     // Pipeline stall signal generator, activated when executing
     //    multicycle mul, div and rem instructions.
-    output                        stall_from_exe_o,
+    output wire                    stall_from_exe_o,
 
     // Signals to D-memory.
-    output reg                    mem_we_o,
-    output reg                    mem_re_o,
+    output reg                     mem_we_o,
+    output reg                     mem_re_o,
 
     // Signals to Memory Alignment unit.
-    output reg [DATA_WIDTH-1 : 0] rs2_data_o,
-    output reg [DATA_WIDTH-1 : 0] mem_addr_o,
-    output reg [1: 0]             mem_input_sel_o,
+    output reg  [DATA_WIDTH-1 : 0] rs2_data_o,
+    output reg  [DATA_WIDTH-1 : 0] mem_addr_o,
+    output reg  [1: 0]             mem_input_sel_o,
     
     // Signals to Memory Writeback Pipeline.
-    output reg [2: 0]             regfile_input_sel_o,
-    output reg                    regfile_we_o,
-    output reg [4: 0]             rd_addr_o,
-    output reg [DATA_WIDTH-1 : 0] p_data_o,
+    output reg  [2: 0]             regfile_input_sel_o,
+    output reg                     regfile_we_o,
+    output reg  [4: 0]             rd_addr_o,
+    output reg  [DATA_WIDTH-1 : 0] p_data_o,
+    output reg                     csr_we_o,
+    output reg  [11: 0]            csr_we_addr_o,
+    output reg  [DATA_WIDTH-1 : 0] csr_we_data_o,
 
     // to Memory_Write_Back_Pipeline
-    output reg                    mem_load_ext_sel_o,
+    output reg                     mem_load_ext_sel_o,
 
     // System Jump operation
     input  wire                    sys_jump_i,
@@ -231,6 +236,27 @@ assign result = alu_muldiv_sel_i ? muldiv_result : alu_result;
 assign stall_from_exe_o = alu_muldiv_sel_i & !muldiv_ready;
 
 // ===============================================================================
+//  CSR
+//
+wire [DATA_WIDTH-1 : 0] csr_inputA = csr_data_i;
+wire [DATA_WIDTH-1 : 0] csr_inputB = operation_sel_i[2] ? {27'b0, csr_imm_i} : rs1_data_i;
+reg  [DATA_WIDTH-1 : 0] csr_update_data;
+
+always @( * )
+begin
+    case (operation_sel_i[1: 0])
+        `CSR_RW:
+            csr_update_data = csr_inputB;
+        `CSR_RS:
+            csr_update_data = csr_inputA | csr_inputB;
+        `CSR_RC:
+            csr_update_data = csr_inputA & ~csr_inputB;
+        default:
+            csr_update_data = csr_inputA;
+    endcase
+end
+
+// ===============================================================================
 //  Pipeline register operations for the Execute stage.
 
 always @(posedge clk_i)
@@ -252,6 +278,9 @@ begin
         exp_cause_o         <= 0;
         exp_tval_o          <= 0;
         instruction_pc_o    <= 0;
+        csr_we_o            <= 0;
+        csr_we_addr_o       <= 0;
+        csr_we_data_o       <= 0;
     end
     else if (stall_i)
     begin
@@ -270,6 +299,9 @@ begin
         exp_cause_o         <= exp_cause_o;
         exp_tval_o          <= exp_tval_o;
         instruction_pc_o    <= instruction_pc_o;
+        csr_we_o            <= csr_we_o;
+        csr_we_addr_o       <= csr_we_addr_o;
+        csr_we_data_o       <= csr_we_data_o;
     end
     else if(flush_i)
     begin
@@ -288,6 +320,9 @@ begin
         exp_cause_o         <= 0;
         exp_tval_o          <= 0;
         instruction_pc_o    <= 0;
+        csr_we_o            <= 0;
+        csr_we_addr_o       <= 0;
+        csr_we_data_o       <= 0;
     end
     else
     begin
@@ -306,6 +341,9 @@ begin
         exp_cause_o         <= exp_cause_i;
         exp_tval_o          <= exp_tval_i;
         instruction_pc_o    <= pc_i;
+        csr_we_o            <= csr_we_i;
+        csr_we_addr_o       <= csr_we_addr_i;
+        csr_we_data_o       <= csr_update_data;
     end
 end
 
