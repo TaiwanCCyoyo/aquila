@@ -41,6 +41,10 @@ int main(int argc, char **argv)
   map<string,uint64_t> elf_symbols;
   bool rv_test_enable = false;
 
+  #ifdef VERERLATE_DRAM
+    cout <<"132456789\n";
+  #endif
+
   if (argc < 2) {
     usage(argv[0]);
     cerr << "Please provide riscv test elf file" << endl;
@@ -56,7 +60,7 @@ int main(int argc, char **argv)
 
   if(argc < 3 || argv[2][0] == '0'){
     cout << "Execute code in TCM\n";
-    fstream bin_file, mem_file;
+    fstream bin_file, mem_file, define_file;
     bin_file.open(argv[1],ios::in | ios::binary);
     mem_file.open("/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem",ios::out);
 
@@ -111,7 +115,7 @@ int main(int argc, char **argv)
       return -1;
     }
   }
-
+  cout << "tohost_addr = " << "0x" << setfill('0') << setw(8) << right << hex << tohost_addr << endl;
   top->rst_n = 0;
   cout << "entry_addr = " << "0x" << setfill('0') << setw(8) << right << hex << entry_addr << endl;
   if(argc < 3 || argv[2][0] == '0'){

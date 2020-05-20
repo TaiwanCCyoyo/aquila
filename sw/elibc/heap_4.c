@@ -386,7 +386,7 @@ static void prvHeapInit( void )
 
 	/* Ensure the heap starts on a correctly aligned boundary. */
     extern unsigned int __heap_start; /* declared in the linker script */
-	ucHeap = (uint8_t *) __heap_start;
+	ucHeap = (uint8_t *) &__heap_start;
 	ulAddress = ( uint32_t ) ucHeap;
 
 	if( ( ulAddress & portBYTE_ALIGNMENT_MASK ) != 0 )

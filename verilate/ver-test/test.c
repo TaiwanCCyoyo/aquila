@@ -58,8 +58,11 @@
 #include <time.h>
 #include "uart.h"
 
-#define __heap_start 0x80400000
-#define __heap_size  0x100000
+extern unsigned int __heap_start;
+extern unsigned int __heap_size;
+
+unsigned int heap_start = (unsigned int)&__heap_start;
+unsigned int heap_size  = (unsigned int)&__heap_size;
 
 void malloc_test(int nwords);
 void timer_isr_test();
@@ -327,7 +330,9 @@ void malloc_test(int nwords)
 
     int buf_addr = (unsigned int) buf;
 
-    if(buf_addr < __heap_start || buf_addr > __heap_start + __heap_size){
+    if(buf_addr < heap_start || buf_addr > heap_start + heap_size){
+        printf("The heap start address is:0x%X\n", heap_start);
+        printf("The heap size  address is:0x%X\n", heap_size);
         printf("Malloc test Error!!\n\n");
         malloc_succeed = 0;
     } else {

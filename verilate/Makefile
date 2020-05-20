@@ -15,6 +15,8 @@ CPPFLAGS = -std=c++11 -I$(VDIR) `pkg-config --cflags verilator`
 AQUILA_CORE_SRC=../ip_repo/aquila/hdl/core_rtl/*.v \
 								../ip_repo/aquila/hdl/aquila.v
 
+INCLUDE_FILE=../ip_repo/aquila/hdl/include/*.v
+
 CORE_VER_SRC=./core-ver-src/*v \
 						 ./core-ver-src/*.sv
 
@@ -65,7 +67,7 @@ core_versyn:
 
 .PHONY: core_verilate
 core_verilate:
-	$(VERILATOR) $(verilator_flag) $(AQUILA_CORE_SRC) $(CORE_VER_SRC) \
+	$(VERILATOR) $(verilator_flag) $(AQUILA_CORE_SRC) $(CORE_VER_SRC) +define+VERERLATE \
 	-Wno-lint -Wno-style -Wno-fatal \
 	-Mdir core_obj_dir \
 	-CFLAGS $(CPPFLAGS) \
@@ -77,14 +79,15 @@ core_verilate:
 .PHONY: build_riscv_tests
 .ONESHELL:
 build_riscv_tests:
-	mkdir tmp
+	#mkdir tmp
 	cd tmp
-	git clone https://github.com/riscv/riscv-tests
+	#git clone https://github.com/riscv/riscv-tests
 	cd riscv-tests
-	rmdir env
-	git clone https://github.com/Daichou/riscv-test-env env
+	#rmdir env
+	#git clone https://github.com/Daichou/riscv-test-env env
 	autoconf
 	./configure --prefix=$(CUR_DIR)/tmp/target
+	make clean
 	make
 	make install
 

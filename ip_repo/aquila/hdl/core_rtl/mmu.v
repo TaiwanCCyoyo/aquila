@@ -61,6 +61,7 @@ module mmu #(
     input  wire         clk_i,
     input  wire         rst_i,
     input  wire         flush_i,
+    
 
     //From CSR
     input  wire         enable_i,
@@ -100,6 +101,8 @@ module mmu #(
     //From icache to processor
     output wire         i_rtrn_vld_o,
     output wire [31: 0] i_rtrn_data_o,
+    output wire [31: 0] i_rtrn_vaddr_o,
+    output wire [31: 0] i_rtrn_paddr_o,
 
     //From dcache
     input  wire         d_rtrn_vld_i,
@@ -135,6 +138,7 @@ module mmu #(
     // --------------
     reg          itlb_req_vld_r;
     reg  [31: 0] itlb_paddr_r;
+    reg  [31: 0] itlb_vaddr_r;
     reg          itlb_content_U_r;
     reg          itlb_content_R_r;
     reg          itlb_content_X_r;
@@ -158,7 +162,7 @@ module mmu #(
     reg          dtlb_content_D_r;
     reg          dtlb_content_X_r;
 
-    reg          pnp_d_exp_vld;
+    reg          pmp_d_exp_vld;
     reg  [ 3: 0] d_exp_cause;
     reg  [31: 0] d_exp_tval;
     wire         hit_dtlb;
@@ -169,6 +173,8 @@ module mmu #(
     // --------------
     // itlb <-> ptw
     // --------------
+    wire         itlb_miss_vld = (enable_i && !hit_itlb && i_req_vld_i);
+
     wire         update_vld_ptw2itlb;
     wire [31: 0] update_content_ptw2itlb;
     wire         update_content_is_4MB_ptw2itlb;
@@ -176,6 +182,8 @@ module mmu #(
     // --------------
     // dtlb <-> ptw
     // --------------
+    wire         dtlb_miss_vld = (enable_i && !hit_dtlb && d_req_vld_i);
+
     wire         update_vld_ptw2dtlb;
     wire [31: 0] update_content_ptw2dtlb;
     wire         update_content_is_4MB_ptw2dtlb;
@@ -206,22 +214,25 @@ module mmu #(
     // ------------------------------------------------------
     // Instruction
     // ------------------------------------------------------
-    always@(clk_i) begin
+    always@(posedge clk_i) begin
         if(rst_i) begin
             itlb_req_vld_r   <= 0;
             itlb_paddr_r     <= 0;
+            itlb_vaddr_r     <= 0;
             itlb_content_U_r <= 0;
             itlb_content_R_r <= 0;
             itlb_content_X_r <= 0;
-        end if(enable_i && hit_itlb) begin
+        end if(enable_i && hit_itlb && i_req_vld_i) begin
             itlb_req_vld_r   <= 1;
             itlb_paddr_r     <= paddr_itlb;
+            itlb_vaddr_r     <= i_req_vaddr_i;
             itlb_content_U_r <= itlb_content[4];
             itlb_content_R_r <= itlb_content[1];
             itlb_content_X_r <= itlb_content[3];
         end else if(i_rtrn_vld_i || i_exp_vld_o) begin
             itlb_req_vld_r   <= 0;
             itlb_paddr_r     <= 0;
+            itlb_vaddr_r     <= 0;
             itlb_content_U_r <= 0;
             itlb_content_R_r <= 0;
             itlb_content_X_r <= 0;
@@ -253,7 +264,7 @@ module mmu #(
     // ------------------------------------------------------
     // Data
     // ------------------------------------------------------
-    always@(clk_i) begin
+    always@(posedge clk_i) begin
         if(rst_i) begin
             dtlb_req_vld_r   <= 0;
             dtlb_paddr_r     <= 0;
@@ -262,7 +273,7 @@ module mmu #(
             dtlb_content_W_r <= 0;
             dtlb_content_D_r <= 0;
             dtlb_content_X_r <= 0;
-        end if(enable_i && hit_itlb) begin
+        end if(enable_i && hit_dtlb && d_req_vld_i) begin
             dtlb_req_vld_r   <= 1;
             dtlb_paddr_r     <= paddr_dtlb;
             dtlb_content_U_r <= dtlb_content[4];
@@ -290,9 +301,9 @@ module mmu #(
              (d_req_rw_i && (!dtlb_content_W_r || !dtlb_content_D_r)) ||
              (              ld_st_privilege_lvl_i == 0   && !dtlb_content_U_r) || 
              (sum_i == 0 && ld_st_privilege_lvl_i == 'd1 && dtlb_content_U_r)) ) begin
-                pnp_d_exp_vld   = 1'b1;
+                pmp_d_exp_vld   = 1'b1;
         end else begin
-            pnp_d_exp_vld   = 1'b0;
+            pmp_d_exp_vld   = 1'b0;
         end
     end
         
@@ -310,8 +321,8 @@ module mmu #(
 
     // -------------------
     // To Arbitrate
-    assign req_vld_d2arb           = (enable_i)?(!d_exp_vld_o && dtlb_req_vld_r):d_req_vld_i;
-    assign req_paddr_d2arb         = (enable_i)?dtlb_paddr_r                        :d_req_vaddr_i;
+    assign req_vld_d2arb           = (enable_i)?(!d_exp_vld_o && !d_rtrn_vld_o && dtlb_req_vld_r):d_req_vld_i;
+    assign req_paddr_d2arb         = (enable_i)?dtlb_paddr_r                    :d_req_vaddr_i;
     assign req_data_d2arb          = d_req_data_i;
     assign req_rw_d2arb            = d_req_rw_i;
     assign req_byte_enable_d2arb   = d_req_byte_enable_i;
@@ -320,17 +331,20 @@ module mmu #(
     //=======================================================
     // Output signals interface                       
     //=======================================================
-    assign i_req_vld_o   = (enable_i)?(!i_exp_vld_o && itlb_req_vld_r):i_req_vld_i;
-    assign i_req_paddr_o = (enable_i)?itlb_paddr_r                        :i_req_vaddr_i;
+    assign i_req_vld_o   = (enable_i)?(!i_exp_vld_o && !i_rtrn_vld_o && itlb_req_vld_r):i_req_vld_i;
+    assign i_req_paddr_o = (enable_i)?itlb_paddr_r                    :i_req_vaddr_i;
 
-    assign i_rtrn_vld_o  = i_rtrn_vld_i;
-    assign i_rtrn_data_o = i_rtrn_data_i;
+    assign i_rtrn_vld_o   = i_rtrn_vld_i;
+    assign i_rtrn_data_o  = i_rtrn_data_i;
+    assign i_rtrn_vaddr_o = (enable_i && !ptw_i_exp_vld)?itlb_vaddr_r                    :i_req_vaddr_i;
+    assign i_rtrn_paddr_o = (enable_i && !ptw_i_exp_vld)?itlb_paddr_r                    :i_req_vaddr_i;
 
-    assign i_exp_vld_o   = pmp_i_exp_vld || ptw_i_exp_vld;
+
+    assign i_exp_vld_o   = /*pmp_i_exp_vld || */ptw_i_exp_vld;
     assign i_exp_cause_o = i_exp_cause;
     assign i_exp_tval_o  = i_exp_tval; 
 
-    assign d_exp_vld_o   = pnp_d_exp_vld || ptw_d_exp_vld;
+    assign d_exp_vld_o   = /*pmp_d_exp_vld || */ptw_d_exp_vld;
     assign d_exp_cause_o = d_exp_cause;
     assign d_exp_tval_o  = d_exp_tval; 
  
@@ -354,12 +368,11 @@ module mmu #(
         
         // Update TLB
         .update_vld_i(update_vld_ptw2itlb),
-        .update_tag_i(itlb_miss_addr_r),
+        .update_tag_i(i_req_vaddr_i[31:12]),
         .update_content_i(update_content_ptw2itlb),
         .update_content_is_4MB_i(update_content_is_4MB_ptw2itlb),
         
         // Translate addres
-        .translate_req_vld_i(i_req_vld_i),
         .asid_i(),
         .vaddr_i(i_req_vaddr_i),
         .hit_o(hit_itlb),
@@ -381,12 +394,11 @@ module mmu #(
         
         // Update TLB
         .update_vld_i(update_vld_ptw2dtlb),
-        .update_tag_i(dtlb_miss_addr_r),
+        .update_tag_i(d_req_vaddr_i[31:12]),
         .update_content_i(update_content_ptw2dtlb),
         .update_content_is_4MB_i(update_content_is_4MB_ptw2dtlb),
         
         // Translate addres
-        .translate_req_vld_i(d_req_vld_i),
         .asid_i(),
         .vaddr_i(d_req_vaddr_i),
         .hit_o(hit_dtlb),
@@ -408,16 +420,16 @@ module mmu #(
         .flush_i(flush_i),
 
         // Update ITLB
-        .itlb_miss_i(itlb_miss_vld_r),
-        .i_vaddr_i(itlb_miss_addr_r),
+        .itlb_miss_i(itlb_miss_vld),
+        .i_vaddr_i(i_req_vaddr_i),
 
         .itlb_update_vld_o(update_vld_ptw2itlb),
         .itlb_update_content_o(update_content_ptw2itlb),
         .itlb_update_content_is_4MB_o(update_content_is_4MB_ptw2itlb),
         
         // Update DTLB
-        .dtlb_miss_i(dtlb_miss_vld_r),
-        .d_vaddr_i(dtlb_miss_addr_r),
+        .dtlb_miss_i(dtlb_miss_vld),
+        .d_vaddr_i(d_req_vaddr_i),
 
         .dtlb_update_vld_o(update_vld_ptw2dtlb),
         .dtlb_update_content_o(update_content_ptw2dtlb),

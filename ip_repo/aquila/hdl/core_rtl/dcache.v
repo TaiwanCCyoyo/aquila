@@ -179,7 +179,7 @@ end
 
 assign line_offset = (p_req_i)?p_addr_i[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS]:p_addr_r[WORD_BITS + BYTE_BITS - 1 : BYTE_BITS];
 assign line_index  = (p_req_i)?p_addr_i[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS]:p_addr_r[NONTAG_BITS - 1 : WORD_BITS + BYTE_BITS];
-assign tag         = (p_req_i)?p_addr_i[ADDR_WIDTH - 1 : NONTAG_BITS]:p_addr_r[ADDR_WIDTH - 1 : NONTAG_BITS];
+assign tag         = p_addr_r[ADDR_WIDTH - 1 : NONTAG_BITS];
 
 //====================================================
 // D-cache Finite State Machine

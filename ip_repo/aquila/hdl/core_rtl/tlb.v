@@ -67,12 +67,11 @@ module tlb # (
 
     // Update TLB
     input wire          update_vld_i,
-    input wire [17: 0]  update_tag_i,
+    input wire [19: 0]  update_tag_i,
     input wire [31: 0]  update_content_i,
     input wire          update_content_is_4MB_i,
 
     // Translate addres
-    input  wire         translate_req_vld_i,
     input  wire [ 8: 0] asid_i,
     input  wire [31: 0] vaddr_i,
     
@@ -123,7 +122,7 @@ wire [ 9: 0] vaddr_i_vpn_0;
 
 
 reg [0 : TLB_ENTRIES - 1] tlb_sel;
-reg [31: 0]               tlb_paddr [0 : TLB_ENTRIES - 1];
+reg [33: 0]               tlb_paddr [0 : TLB_ENTRIES - 1];
 
 reg [$clog2(TLB_ENTRIES) - 1 : 0] FIFO_cnt_r;
 //=======================================================
@@ -232,7 +231,7 @@ always@(posedge clk_i) begin
             tag_vpn_0_r[i] <= 'd0;
         end
     end else if(update_vld_i) begin
-        tag_vpn_1_r[FIFO_cnt_r] <= update_tag_i[17:10];
+        tag_vpn_1_r[FIFO_cnt_r] <= update_tag_i[19:10];
         tag_vpn_0_r[FIFO_cnt_r] <= update_tag_i[ 9: 0];
     end
 end
@@ -264,20 +263,20 @@ assign hit_o = (|tlb_sel);
 generate
     for(g = 0; g < TLB_ENTRIES ; g = g + 1) 
     begin : paddr_o_gen
-        wire paddr_temp;
+        wire [33:0] paddr_temp;
         if(g == 0)
-            assign paddr_temp = {(32){tlb_sel[g]}} & tlb_paddr[g];
+            assign paddr_temp = {(34){tlb_sel[g]}} & tlb_paddr[g];
         else
-            assign paddr_temp = paddr_o_gen[g-1].paddr_temp | ( {(32){tlb_sel[g]}} & tlb_paddr[g] );
+            assign paddr_temp = paddr_o_gen[g-1].paddr_temp | ( {(34){tlb_sel[g]}} & tlb_paddr[g] );
     end
-    assign paddr_o = paddr_o_gen[TLB_ENTRIES-1].paddr_temp;
+    assign paddr_o = paddr_o_gen[TLB_ENTRIES-1].paddr_temp[31:0];
 endgenerate
 
 //content_o
 generate
     for(g = 0; g < TLB_ENTRIES ; g = g + 1) 
     begin : content_o_gen
-        wire content_temp;
+        wire [31:0] content_temp;
         if(g == 0)
             assign content_temp = {(32){tlb_sel[g]}} & content_r[g];
         else

@@ -327,16 +327,16 @@ always @(posedge clk_i)
 begin
     if (rst_i)
     begin
-        mstatus_r <= {19'b0, `M_MODE, 3'b0, 1'b1, 3'b0};//MPP <= 2'b11(M-mode) MIE <= 1
+        mstatus_r <= {19'b0, `M_MODE, 7'b0, 1'b1, 3'b0};//MPP <= 2'b11(M-mode) MIE <= 1
     end
     else if (irq_taken)
         if(trap_to_M)
         begin
-            mstatus_r <= {mstatus_r[31:8], mstatus_r[3], mstatus_r[6:4], 1'b0, mstatus_r[2:0]};// MPIE <= MIE, MIE <= 0
+            mstatus_r <= {mstatus_r[31:13], privilege_lvl_r, mstatus_r[10:8], mstatus_r[3], mstatus_r[6:4], 1'b0, mstatus_r[2:0]};// MPIE <= MIE, MIE <= 0
         end
         else
         begin
-            mstatus_r <= {mstatus_r[31:6], mstatus_r[1], mstatus_r[4:2], 1'b0, mstatus_r[0]};// SPIE <= SIE, SIE <= 0
+            mstatus_r <= {mstatus_r[31:9], privilege_lvl_r, mstatus_r[7:6], mstatus_r[1], mstatus_r[4:2], 1'b0, mstatus_r[0]};// SPIE <= SIE, SIE <= 0
         end
     else if (sys_jump_i)
     begin
@@ -499,6 +499,7 @@ begin
         else           mcause_d = {1'b0, 27'b0, exp_cause_i};     
     end
 end
+
 
 
 //-----------------------------------------------
@@ -941,17 +942,6 @@ begin
     end
 end
 
-always @(*)
-begin
-    if(privilege_lvl_r == `M_MODE )
-    begin
-        if(     ext_irq_i & mie_r[11]) mcause_d = {1'b1, 27'b0, 4'd11};
-        else if(tmr_irq_i & mie_r[ 7]) mcause_d = {1'b1, 27'b0, 4'd7 };
-        else if(sft_irq_i & mie_r[ 3]) mcause_d = {1'b1, 27'b0, 4'd3 };
-        else if(exp_vld_i    )         mcause_d = {1'b0, 27'b0, exp_cause_i};
-        else                           mcause_d = {1'b1, 27'b0, 4'd0 };
-    end
-end
 
 always @(posedge clk_i)
 begin

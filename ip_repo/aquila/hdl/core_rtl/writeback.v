@@ -95,6 +95,12 @@ module writeback #( parameter DATA_WIDTH = 32 )
     output wire                    sys_jump_o,
     output wire [ 1: 0]            sys_jump_csr_addr_o,
 
+    input  wire                     req_done_i,        
+    input  wire                     buffer_exp_vld_i,  
+    input  wire [3 : 0]             buffer_exp_cause_i,
+    input  wire [31: 0]             buffer_exp_tval_i, 
+    input  wire [DATA_WIDTH-1 : 0]  buffer_data_i,    
+
     //Exception From Memory
     input  wire                    exp_vld_i,
     input  wire [3 : 0]            exp_cause_i,
@@ -229,7 +235,7 @@ begin
     else if(exp_vld_i)
         mem_data_r <= 32'b0;
     else
-        mem_data_r <= mem_data_i;
+        mem_data_r <= (req_done_i)?buffer_data_i:mem_data_i;
 end
 
 reg [31 : 0] aligned_data, rd_data;

@@ -62,18 +62,18 @@ module ptw (
 
     // Update ITLB
     input  wire         itlb_miss_i,
-    input  wire         i_vaddr_i,
+    input  wire [31: 0] i_vaddr_i,
 
     output wire         itlb_update_vld_o,
-    output wire         itlb_update_content_o,
+    output wire [31: 0] itlb_update_content_o,
     output wire         itlb_update_content_is_4MB_o,
     
     // Update DTLB
     input  wire         dtlb_miss_i,
-    input  wire         d_vaddr_i,
+    input  wire [31: 0] d_vaddr_i,
 
     output wire         dtlb_update_vld_o,
-    output wire         dtlb_update_content_o,
+    output wire [31: 0] dtlb_update_content_o,
     output wire         dtlb_update_content_is_4MB_o,
 
     // To D$
@@ -141,6 +141,16 @@ reg         exception_vld;
 //=======================================================
 // User Logic                         
 //=======================================================
+// --------------------------
+// | vpn_1 | vpn_0 | offset |
+// --------------------------
+// |31   22|21   12|11     0|
+// --------------------------
+//vpn
+assign i_vaddr_i_vpn_1 = i_vaddr_i[31:22];
+assign i_vaddr_i_vpn_0 = i_vaddr_i[21:12];
+assign d_vaddr_i_vpn_1 = d_vaddr_i[31:22];
+assign d_vaddr_i_vpn_0 = d_vaddr_i[21:12];
 
 //-----------------------------------------------
 // PTE page table entry
@@ -190,22 +200,22 @@ always @(*) begin
             end
         Look_up:
             if(rtrn_vld_i) begin
-                if(~rtrn_data_V || 
-                    (rtrn_data_W && ~rtrn_data_R)) begin
+                if(!rtrn_data_V || 
+                    (rtrn_data_W && !rtrn_data_R)) begin
                         //page fault
                         S_nxt = Idle;
                 end else begin
-                    if(rtrn_data_X && rtrn_data_W && rtrn_data_R) begin
-                        if(~pte_lvl_r) begin
+                    if(rtrn_data_X || rtrn_data_R) begin
+                        //leaf page
+                        S_nxt = Update;
+                    end else begin
+                        if(!pte_lvl_r) begin
                             //Pointer to next level
                             S_nxt = Look_up;
                         end else begin
                             //Page fault
                             S_nxt = Idle;
                         end 
-                    end else begin
-                        //leaf page
-                        S_nxt = Update;
                     end
                 end
             end else begin
@@ -255,9 +265,9 @@ always@(posedge clk_i) begin
     end else if(S == Look_up) begin
         if(rtrn_vld_i) begin
             if(rtrn_data_V
-            && ~(rtrn_data_W && ~rtrn_data_R) //not reserved page
-            && (rtrn_data_X && rtrn_data_W && rtrn_data_R) //pointer to next page
-            && (~pte_lvl_r)) begin //level 1               
+            && !(rtrn_data_W && !rtrn_data_R) //not reserved page
+            && !(rtrn_data_X || rtrn_data_R) //not leaf page
+            && (!pte_lvl_r)) begin //level 1               
                 if(work_for_itlb_r)
                     req_addr_r <= {rtrn_data_i[31:10], i_vaddr_i_vpn_0, 2'b0};
                 else
@@ -270,11 +280,11 @@ end
 // content_is_4MB
 always@(posedge clk_i) begin
     if(rtrn_vld_i) begin
-        if(rtrn_data_V && 
-        ~(rtrn_data_W && ~rtrn_data_R) && //not reserved page
-        ~(rtrn_data_X && rtrn_data_W && rtrn_data_R)) begin //not pointer to next level
+        if(rtrn_data_V 
+        && !(rtrn_data_W && !rtrn_data_R)//not reserved page
+        && (rtrn_data_X || rtrn_data_R)) begin //leaf page
             //leaf page
-            if(~pte_lvl_r) begin
+            if(!pte_lvl_r) begin
                 content_is_4MB_r <= 1'b1;
             end else begin
                 content_is_4MB_r <= 1'b0;
@@ -292,7 +302,7 @@ end
 always@(posedge clk_i) begin
     if(S == Idle) begin
         pte_lvl_r <= 'b0;
-    end else if(S == Look_up) begin
+    end else if(S == Look_up && rtrn_vld_i) begin
         pte_lvl_r <= 'b1;
     end
 end
@@ -329,17 +339,17 @@ always@(*) begin
                     //page fault
                     exception_vld = 1;
             end else begin
-                if(rtrn_data_X && rtrn_data_W && rtrn_data_R) begin
-                    if(~pte_lvl_r) begin
+                if(rtrn_data_X || rtrn_data_R) begin
+                    //leaf page
+                    exception_vld = 0;
+                end else begin
+                    if(!pte_lvl_r) begin
                         //Pointer to next level
                         exception_vld = 0;
                     end else begin
                         //Page fault
                         exception_vld = 1;
                     end 
-                end else begin
-                    //leaf page
-                    exception_vld = 0;
                 end
             end
         end

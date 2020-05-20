@@ -115,10 +115,10 @@ always @(posedge clk_i)
 begin
     if (rst_i)
         pc_r <= init_pc_addr_i;
-    else if (irq_taken_i)
-        pc_r <= PC_handler_i;
     else if (stall_i)
         pc_r <= pc_r;
+    else if (irq_taken_i)
+        pc_r <= PC_handler_i;
     else
         // with branch predictor
         if (branch_taken_i & !uncond_branch_hit_EXE_i & !cond_branch_hit_EXE_i)

@@ -207,7 +207,7 @@ wire [DATA_WIDTH-1 : 0] csr_fwd;
 // ----------------------
 // csr <-> mmu
 // ----------------------
-wire         mmu_enable_csr2mmu = 0;
+wire         mmu_enable_csr2mmu;
 wire [21: 0] root_ppn_csr2mmu;
 wire [ 8: 0] asid_csr2mmu;
 wire [ 1: 0] ld_st_privilege_lvl_csr2mmu;
@@ -222,6 +222,8 @@ wire [31: 0] i_req_vaddr_fet2mmu;
 
 wire         i_rtrn_vld_mmu2fet;
 wire [31: 0] i_rtrn_data_mmu2fet;
+wire [31: 0] i_rtrn_vaddr_mmu2fet;
+wire [31: 0] i_rtrn_paddr_mmu2fet;
 
 wire         i_exp_vld_mmu2fet;
 wire [ 3: 0] i_exp_cause_mmu2fet;
@@ -314,7 +316,7 @@ wire [31: 0]  csr_data2dec;
 // Finite state machine that controls the processor pipeline stalls.
 //
 localparam i_NEXT = 0, i_WAIT = 1;
-localparam d_IDLE = 0, d_WAIT = 1;
+// localparam d_IDLE = 0, d_WAIT = 1;
  reg iS, iS_nxt, dS, dS_nxt;
 
 // -----------------------------------------------------------------------------
@@ -325,7 +327,7 @@ localparam d_IDLE = 0, d_WAIT = 1;
 wire stall_pipeline, stall_for_instr_fetch, stall_for_data_fetch;
 
 assign stall_for_instr_fetch = (iS_nxt == i_WAIT);
-assign stall_for_data_fetch = (dS_nxt == d_WAIT);
+// assign stall_for_data_fetch = (dS_nxt == d_WAIT);
 
  always @(posedge clk_i)
  begin
@@ -351,29 +353,29 @@ assign stall_for_data_fetch = (dS_nxt == d_WAIT);
      endcase
  end
 
-always @(posedge clk_i)
-begin
-    if (rst_i)
-        dS <= d_IDLE;
-    else
-        dS <= dS_nxt;
-end
+// always @(posedge clk_i)
+// begin
+//     if (rst_i)
+//         dS <= d_IDLE;
+//     else
+//         dS <= dS_nxt;
+// end
 
-always @(*)
-begin
-    case (dS)
-        d_IDLE:
-            if ((exe_re || exe_we) && !memory_alignment_exception)
-                dS_nxt = d_WAIT;
-            else
-                dS_nxt = d_IDLE;
-        d_WAIT:
-            if (d_rtrn_vld_mmu2mem || d_exp_vld_mmu2mem)
-                dS_nxt = d_IDLE;
-            else
-                dS_nxt = d_WAIT;
-    endcase
-end
+// always @(*)
+// begin
+//     case (dS)
+//         d_IDLE:
+//             if ((exe_re || exe_we) && !memory_alignment_exception)
+//                 dS_nxt = d_WAIT;
+//             else
+//                 dS_nxt = d_IDLE;
+//         d_WAIT:
+//             if (d_rtrn_vld_mmu2mem || d_exp_vld_mmu2mem)
+//                 dS_nxt = d_IDLE;
+//             else
+//                 dS_nxt = d_WAIT;
+//     endcase
+// end
 
 // -----------------------------------------------------------------------------
 // Output instruction/data request signals to mmu
@@ -388,14 +390,14 @@ end
 // assign data_rw_o = exe_we;
 // assign data_byte_enable_o = byte_write_sel;
 
-assign i_req_vld_fet2mmu   = !(iS == i_WAIT && i_rtrn_vld_mmu2fet);
+assign i_req_vld_fet2mmu   = !(iS == i_WAIT && (i_rtrn_vld_mmu2fet || i_exp_vld_mmu2fet));
 assign i_req_vaddr_fet2mmu = pc;
 
-assign d_req_vld_mem2mmu          = (dS_nxt == d_WAIT);      
-assign d_req_vaddr_mem2mmu        = exe_addr2mem;      
-assign d_req_data_mem2mmu         = data_o;
-assign d_req_rw_mem2mmu           = exe_we;
-assign d_req_byte_enable_mem2mmu  = byte_write_sel;
+// assign d_req_vld_mem2mmu          = (dS_nxt == d_WAIT);      
+// assign d_req_vaddr_mem2mmu        = exe_addr2mem;      
+// assign d_req_data_mem2mmu         = data_o;
+// assign d_req_rw_mem2mmu           = exe_we;
+// assign d_req_byte_enable_mem2mmu  = byte_write_sel;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                        the following are submodules                        //
@@ -615,7 +617,8 @@ fetch Fetch(
     .instruction_i(i_rtrn_data_mmu2fet),
 
     // from Program_Counter
-    .pc_i(pc),
+    .pc_i(i_rtrn_vaddr_mmu2fet),
+    .ppc_i(i_rtrn_paddr_mmu2fet),
 
     // to the Decode Stage
     .instruction_o(fet_instr2dec),
@@ -836,7 +839,21 @@ execute Execute(
 );
 
 // =============================================================================
+wire                     req_done_mem2wb;        
+wire                     buffer_exp_vld_mem2wb;  
+wire [3 : 0]             buffer_exp_cause_mem2wb;
+wire [31: 0]             buffer_exp_tval_mem2wb; 
+wire [DATA_WIDTH-1 : 0]  buffer_data_mem2wb;    
+
+
 memory_access Memory_Access(
+    .clk_i(clk_i),
+    .rst_i(rst_i),
+
+    .stall_i(stall_for_instr_fetch | stall_for_data_fetch | stall_from_exe),
+    .flush_i(flush2mem_wb || irq_taken),
+    .stall_for_data_fetch_o(stall_for_data_fetch),
+
     // from Execute_Memory_Pipeline
     .unaligned_data_i(exe_rs2_data2mem),      // store value
     .mem_addr_i(exe_addr2mem),
@@ -845,8 +862,14 @@ memory_access Memory_Access(
     .exe_re_i(exe_re),
 
     // to D-memory
-    .data_o(data_o),                        // data_write
-    .byte_write_sel_o(byte_write_sel),
+    .data_o(d_req_data_mem2mmu),                        // data_write
+    .byte_write_sel_o(d_req_byte_enable_mem2mmu),
+    .req_vld_o(d_req_vld_mem2mmu),    
+    .req_vaddr_o(d_req_vaddr_mem2mmu),       
+    .req_rw_o(d_req_rw_mem2mmu),     
+
+    .d_rtrn_vld_i(d_rtrn_vld_mmu2mem),
+    .d_rtrn_data_i(d_rtrn_data_mmu2mem_wb),
 
     // System Jump operation
     .sys_jump_i(sys_jump_exe2mem),
@@ -855,11 +878,18 @@ memory_access Memory_Access(
     .sys_jump_csr_addr_o(sys_jump_csr_addr_mem2mem_wb),
 
     // Exception signal
-    .memory_alignment_exception_o(memory_alignment_exception),
+    //.memory_alignment_exception_o(memory_alignment_exception),
+
+    .req_done_o(req_done_mem2wb),       
+    .buffer_exp_vld_o(buffer_exp_vld_mem2wb),
+    .buffer_exp_cause_o(buffer_exp_cause_mem2wb),
+    .buffer_exp_tval_o(buffer_exp_tval_mem2wb), 
+    .buffer_data_o(buffer_data_mem2wb),    
 
     //exception from execute
     .exp_vld_i(exp_vld_exe2mem),
     .exp_cause_i(exp_cause_exe2mem),
+    .exp_tval_i(exp_tval_exe2mem),
     .instruction_pc_i(instruction_pc_exe2mem),
 
     //exception from mmu
@@ -908,6 +938,12 @@ writeback Writeback(
     .sys_jump_csr_addr_i(sys_jump_csr_addr_mem2mem_wb),
     .sys_jump_o(sys_jump_mem_wb2csr),
     .sys_jump_csr_addr_o(sys_jump_csr_addr_mem_wb2csr),
+
+    .req_done_i(req_done_mem2wb),       
+    .buffer_exp_vld_i(buffer_exp_vld_mem2wb),
+    .buffer_exp_cause_i(buffer_exp_cause_mem2wb),
+    .buffer_exp_tval_i(buffer_exp_tval_mem2wb), 
+    .buffer_data_i(buffer_data_mem2wb),    
 
     //Exception From Memory
     .exp_vld_i(exp_vld_mem2mem_wb),
@@ -1022,6 +1058,8 @@ mmu #(
 
     //From icache to processor
     .i_rtrn_vld_o(i_rtrn_vld_mmu2fet),
+    .i_rtrn_vaddr_o(i_rtrn_vaddr_mmu2fet),
+    .i_rtrn_paddr_o(i_rtrn_paddr_mmu2fet),
     .i_rtrn_data_o(i_rtrn_data_mmu2fet),
 
     //From dcache

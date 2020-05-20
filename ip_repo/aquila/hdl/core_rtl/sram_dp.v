@@ -81,10 +81,17 @@ wire [31:0] temp2  = RAM[2];
 wire [31:0] temp3  = RAM[3];
 wire [31:0] temp10 = RAM[10];
 
-// initial
-// begin
-//     $readmemh("/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem", RAM);
-// end
+`ifdef VERERLATE
+    initial
+    begin
+        $readmemh("/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/ip_repo/aquila/hdl/mem/test.mem", RAM);
+    end
+`else
+    initial
+    begin
+        $readmemh("bootrom.mem", RAM);
+    end
+`endif
 
 // ------------------------------------
 // Read operation on port #1

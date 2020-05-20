@@ -81,6 +81,7 @@ module fetch #( parameter DATA_WIDTH = 32 )
 
     // from Program_Counter
     input  [DATA_WIDTH-1 : 0]     pc_i,
+    input  [DATA_WIDTH-1 : 0]     ppc_i,
 
     // from Cond_Branch_Predictor
     input                         cond_branch_hit_IF_i,
@@ -110,43 +111,78 @@ module fetch #( parameter DATA_WIDTH = 32 )
     output reg  [31: 0]            exp_tval_o
 );
 
-// reg stall_delay;
-// reg flush_delay;
-// reg [31: 0] instruction_delay;
+reg [DATA_WIDTH-1 : 0] instruction_tcm;
+reg [DATA_WIDTH-1 : 0] instruction_dram;
 
-// always @(posedge clk_i)
-// begin
-//     stall_delay <= stall_i;
-//     flush_delay <= flush_i;
-//     instruction_delay <= stall_i ? instruction_delay : instruction_i;
-// end
+reg stall_delay;
+reg flush_delay;
+reg [31: 0] instruction_delay;
 
-// always @(*)
-// begin
-//     if (rst_i)
-//         instruction_o = 32'h00000013;
-//     else if (stall_delay)
-//         instruction_o = instruction_delay;
-//     else if (flush_delay)
-//         instruction_o = 32'h00000013;
-//     else if(exp_from_mmu_vld_i)
-//         instruction_o = 32'h00000013;
-//     else
-//         instruction_o = instruction_delay;
-// end
+// **********
+//  original
+always @(posedge clk_i)
+begin
+    if (rst_i) begin // to-do: initialize value should be ?
+        stall_delay <= 0;
+        flush_delay <= 0;
+        instruction_delay <= 32'h00000013;
+    end else begin
+        stall_delay <= stall_i;
+        flush_delay <= flush_i;
+        instruction_delay <= stall_delay ? instruction_delay : instruction_i;
+    end
+end
 
+always @(*)
+begin
+    if (rst_i)
+        instruction_tcm <= 32'h00000013;
+    else if (stall_delay)
+        instruction_tcm <= instruction_delay;
+    else if (flush_delay)
+        instruction_tcm <= 32'h00000013;
+    else
+        instruction_tcm <= instruction_i;
+end
+
+// *****************************
+/*
+always @(posedge clk_i)
+begin
+    stall_delay <= stall_i;
+    flush_delay <= flush_i;
+    instruction_delay <= stall_i ? instruction_delay : instruction_i;
+end
+
+always @(*)
+begin
+    if (rst_i)
+        instruction_tcm = 32'h00000013;
+    else if (stall_delay)
+        instruction_tcm = instruction_delay;
+    else if (flush_delay)
+        instruction_tcm = 32'h00000013;
+    else
+        instruction_tcm = instruction_delay;
+end
+*/
 always @(posedge clk_i)
 begin
     if (rst_i)
-        instruction_o <= 32'h00000013;
+        instruction_dram <= 32'h00000013;
     else if (stall_i)
-        instruction_o <= instruction_o;
+        instruction_dram <= instruction_dram;
     else if (flush_i)
-        instruction_o <= 32'h00000013;
-    else if(exp_from_mmu_vld_i)
-        instruction_o <= 32'h00000013;
+        instruction_dram <= 32'h00000013;
     else
-        instruction_o <= instruction_i;
+        instruction_dram <= instruction_i;
+end
+
+always @(*) begin
+    /*if(ppc_i[31:28] == 4'b0)
+        instruction_o = instruction_tcm;
+    else*/
+        instruction_o = instruction_dram;
 end
 
 always @(posedge clk_i)
@@ -183,6 +219,17 @@ begin
         exp_vld_o <= 0;
         exp_cause_o <= 0;
         exp_tval_o <= 0;
+    end
+    else if(exp_from_mmu_vld_i)
+    begin
+        pc_o <= pc_i;
+        instr_valid_o <= 0; // default: instruction is valid
+        cond_branch_hit_ID_o <= 0;
+        cond_branch_result_ID_o <= 0;
+        uncond_branch_hit_ID_o <= 0;
+        exp_vld_o <= exp_from_mmu_vld_i;
+        exp_cause_o <= exp_from_mmu_cause_i;
+        exp_tval_o <= exp_from_mmu_tval_i;
     end
     else
     begin
