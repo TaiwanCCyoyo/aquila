@@ -360,7 +360,7 @@ void timer_isr_test()
     int n;
 
     printf("Timer ISR test:1\n");
-    n = 3;
+    n = 1;
 
     // Set the ISR address.
     got_timmer_isr = 0;

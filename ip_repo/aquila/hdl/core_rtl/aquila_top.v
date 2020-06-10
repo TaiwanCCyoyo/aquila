@@ -248,6 +248,7 @@ sram_dp #(.DATA_WIDTH(DATA_WIDTH), .N_ENTRIES(TCM_SIZE_IN_WORDS))
 TCM(
     // Instruction
     .clk1_i(clk_i),
+    .rst1_i(rst_i),
     .en1_i(p_i_req && (ins_sel == 0)),
     .we1_i(1'b0),
     .be1_i(4'b1111),

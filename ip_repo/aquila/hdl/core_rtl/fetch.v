@@ -111,78 +111,90 @@ module fetch #( parameter DATA_WIDTH = 32 )
     output reg  [31: 0]            exp_tval_o
 );
 
-reg [DATA_WIDTH-1 : 0] instruction_tcm;
-reg [DATA_WIDTH-1 : 0] instruction_dram;
+// reg [DATA_WIDTH-1 : 0] instruction_tcm;
+// reg [DATA_WIDTH-1 : 0] instruction_dram;
 
-reg stall_delay;
-reg flush_delay;
-reg [31: 0] instruction_delay;
+// reg stall_delay;
+// reg flush_delay;
+// reg [31: 0] instruction_delay;
 
 // **********
 //  original
-always @(posedge clk_i)
-begin
-    if (rst_i) begin // to-do: initialize value should be ?
-        stall_delay <= 0;
-        flush_delay <= 0;
-        instruction_delay <= 32'h00000013;
-    end else begin
-        stall_delay <= stall_i;
-        flush_delay <= flush_i;
-        instruction_delay <= stall_delay ? instruction_delay : instruction_i;
-    end
-end
+// always @(posedge clk_i)
+// begin
+//     if (rst_i) begin // to-do: initialize value should be ?
+//         stall_delay <= 0;
+//         flush_delay <= 0;
+//         instruction_delay <= 32'h00000013;
+//     end else begin
+//         stall_delay <= stall_i;
+//         flush_delay <= flush_i;
+//         instruction_delay <= stall_delay ? instruction_delay : instruction_i;
+//     end
+// end
 
-always @(*)
-begin
-    if (rst_i)
-        instruction_tcm <= 32'h00000013;
-    else if (stall_delay)
-        instruction_tcm <= instruction_delay;
-    else if (flush_delay)
-        instruction_tcm <= 32'h00000013;
-    else
-        instruction_tcm <= instruction_i;
-end
+// always @(*)
+// begin
+//     if (rst_i)
+//         instruction_tcm = 32'h00000013;
+//     else if (stall_delay)
+//         instruction_tcm = instruction_delay;
+//     else if (flush_delay)
+//         instruction_tcm = 32'h00000013;
+//     else
+//         instruction_tcm = instruction_i;
+// end
 
 // *****************************
 
+// always @(posedge clk_i)
+// begin
+//     stall_delay <= stall_i;
+//     flush_delay <= flush_i;
+//     instruction_delay <= stall_i ? instruction_delay : instruction_i;
+// end
+
+// always @(*)
+// begin
+//     if (rst_i)
+//         instruction_tcm = 32'h00000013;
+//     else if (stall_delay)
+//         instruction_tcm = instruction_delay;
+//     else if (flush_delay)
+//         instruction_tcm = 32'h00000013;
+//     else
+//         instruction_tcm = instruction_delay;
+// end
+
+// always @(posedge clk_i)
+// begin
+//     if (rst_i)
+//         instruction_dram <= 32'h00000013;
+//     else if (stall_i)
+//         instruction_dram <= instruction_dram;
+//     else if (flush_i)
+//         instruction_dram <= 32'h00000013;
+//     else
+//         instruction_dram <= instruction_i;
+// end
+
+// always @(*) begin
+//     if(pc_i[31:28] == 4'b0)
+//         instruction_o = instruction_tcm;
+//     else
+//         instruction_o = instruction_dram;
+// end
+
 always @(posedge clk_i)
 begin
-    stall_delay <= stall_i;
-    flush_delay <= flush_i;
-    instruction_delay <= stall_i ? instruction_delay : instruction_i;
-end
-
-always @(*)
-begin
     if (rst_i)
-        instruction_tcm = 32'h00000013;
-    else if (stall_delay)
-        instruction_tcm = instruction_delay;
-    else if (flush_delay)
-        instruction_tcm = 32'h00000013;
-    else
-        instruction_tcm = instruction_delay;
-end
-
-always @(posedge clk_i)
-begin
-    if (rst_i)
-        instruction_dram <= 32'h00000013;
+        instruction_o <= 32'h00000013;
     else if (stall_i)
-        instruction_dram <= instruction_dram;
+        instruction_o <= instruction_o;
     else if (flush_i)
-        instruction_dram <= 32'h00000013;
+        instruction_o <= 32'h00000013;
     else
-        instruction_dram <= instruction_i;
-end
-
-always @(*) begin
-    if(ppc_i[31:28] == 4'b0)
-        instruction_o = instruction_tcm;
-    else
-        instruction_o = instruction_dram;
+        instruction_o <= instruction_i;
 end
 
 always @(posedge clk_i)
