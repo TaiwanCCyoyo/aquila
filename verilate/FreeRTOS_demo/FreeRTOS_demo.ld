@@ -1,8 +1,8 @@
 /*
 // =============================================================================
-//  Program : test.ld
+//  Program : ultraboot.ld
 //  Author  : Chun-Jen Tsai
-//  Date    : Dec/09/2019
+//  Date    : Nov/04/2019
 // -----------------------------------------------------------------------------
 //  Revision information:
 //
@@ -55,28 +55,24 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 //  POSSIBILITY OF SUCH DAMAGE.
 // =============================================================================
-must start from 0x80000000 due to aquila hard code /
 */
 
-__heap_start = 0x00400000;
-__heap_size  = 0x00100000;
-__stack_top  = 0x00A00000;
-__stack_size = 0x00100000;
-__stack_start = __stack_top - __stack_size;
+/* The following configurations are for Xilinx KC705 */
+__stack_size = 0x3000;
+__stack_top = ORIGIN(data_ram) + LENGTH(data_ram) + __stack_size;
 
+/* tcm only modify orgin of code.data_ram and length=0x30000 */
 MEMORY
 {
-    code_ram   (rx!rw) : ORIGIN = 0x00000000, LENGTH = 0x00100000
-    data_ram   (rw!x)  : ORIGIN = 0x00020000, LENGTH = 0x00100000
-    heap_ram   (rw!x)  : ORIGIN = __heap_start, LENGTH = __heap_size
-    stack_ram  (rw!x)  : ORIGIN = __stack_start, LENGTH = __stack_size
+    code_ram   (rx!rw) : ORIGIN = 0x00000000, LENGTH = 0xA000
+    data_ram   (rw!x)  : ORIGIN = 0x0000B000, LENGTH = 0x5000
 }
 
 SECTIONS
 {
     .text :
     {
-        boot.o(.text)
+        ./build/app/boot.o(.text)
         *(.text)
 
     } > code_ram
@@ -89,22 +85,8 @@ SECTIONS
 
     } > data_ram
 
-    .heap :
+    .stack : 
     {
-        . = ALIGN(4);
-        PROVIDE ( end = . );
-        _sheap = .;
-        . = . + __heap_size;
-        . = ALIGN(4);
-        _eheap = .;
-    } > heap_ram
-
-    .stack :
-    {
-        . = ALIGN(4);
-        _estack = .;
-        . = . + __stack_size;
-        . = ALIGN(4);
-        _sstack = .;
-    } > stack_ram
+        __freertos_irq_stack_top = __stack_top;
+    }
 }

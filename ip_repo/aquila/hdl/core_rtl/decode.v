@@ -599,7 +599,7 @@ begin
     end
     else if(exp_vld)
     begin
-         pc_o <= pc_i;
+        pc_o <= pc_i;
         rs1_data2fwd_o <= 0;
         rs2_data2fwd_o <= 0;
         imm_o <= 0;
@@ -623,7 +623,7 @@ begin
         rs2_addr2fwd_o <= 0;
         is_csr_instr_o <= 0;
         csr_imm_o <= 0;
-        instr_valid_o <= 0;
+        instr_valid_o <= 1;
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;

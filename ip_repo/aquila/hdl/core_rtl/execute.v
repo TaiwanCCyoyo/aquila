@@ -143,12 +143,14 @@ module execute #(parameter DATA_WIDTH = 32)
     input  wire                    exp_vld_i,
     input  wire [ 3: 0]            exp_cause_i,
     input  wire [31: 0]            exp_tval_i,
+    input  wire                    instruction_pc_vld_i,
 
     //Exception to Memory
     output reg                     exp_vld_o,
     output reg  [ 3: 0]            exp_cause_o,
     output reg  [31: 0]            exp_tval_o,
-    output reg  [31: 0]            instruction_pc_o
+    output reg  [31: 0]            instruction_pc_o,
+    output reg                     instruction_pc_vld_o
 );
 
 reg  [DATA_WIDTH-1 : 0]           inputA, inputB;
@@ -278,6 +280,7 @@ begin
         exp_cause_o         <= 0;
         exp_tval_o          <= 0;
         instruction_pc_o    <= 0;
+        instruction_pc_vld_o<= 0;
         csr_we_o            <= 0;
         csr_we_addr_o       <= 0;
         csr_we_data_o       <= 0;
@@ -299,6 +302,7 @@ begin
         exp_cause_o         <= exp_cause_o;
         exp_tval_o          <= exp_tval_o;
         instruction_pc_o    <= instruction_pc_o;
+        instruction_pc_vld_o<= instruction_pc_vld_o;
         csr_we_o            <= csr_we_o;
         csr_we_addr_o       <= csr_we_addr_o;
         csr_we_data_o       <= csr_we_data_o;
@@ -320,6 +324,7 @@ begin
         exp_cause_o         <= 0;
         exp_tval_o          <= 0;
         instruction_pc_o    <= 0;
+        instruction_pc_vld_o<= 0;
         csr_we_o            <= 0;
         csr_we_addr_o       <= 0;
         csr_we_data_o       <= 0;
@@ -341,6 +346,7 @@ begin
         exp_cause_o         <= exp_cause_i;
         exp_tval_o          <= exp_tval_i;
         instruction_pc_o    <= pc_i;
+        instruction_pc_vld_o<= instruction_pc_vld_i;
         csr_we_o            <= csr_we_i;
         csr_we_addr_o       <= csr_we_addr_i;
         csr_we_data_o       <= csr_update_data;

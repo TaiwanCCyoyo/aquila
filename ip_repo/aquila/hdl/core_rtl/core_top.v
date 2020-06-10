@@ -137,7 +137,7 @@ wire                    dec_illegal_instr;
 wire [DATA_WIDTH-1 : 0] dec_pc2exe, dec_imm2exe,
                         dec_rs1_data2fwd, dec_rs2_data2fwd;
 wire                    dec_regfile_we2exe, dec_we2exe, dec_re2exe,
-                        dec_load_ext_sel2exe, dec_instr_valid2csr;
+                        dec_load_ext_sel2exe, instruction_pc_vld_dec2exe;
 wire [ 4 : 0]           dec_rd_addr2exe, dec_rs1_addr2fwd, dec_rs2_addr2fwd,
                         dec_csr_imm2csr;
 wire [ 1 : 0]           dec_inA_sel2exe, dec_inB_sel2exe, dec_input_sel2exe;
@@ -202,6 +202,12 @@ wire [DATA_WIDTH-1 : 0] csr_fwd;
 // ----------------------
 // csr <-> exe
 // ----------------------
+
+// ----------------------
+// csr <-> mem
+// ----------------------
+wire [3 : 0] mstatus_ie_csr2mem;
+wire [31: 0] mie_csr2mem;
 
 
 // ----------------------
@@ -270,6 +276,7 @@ wire         exp_vld_exe2mem;
 wire [ 3: 0] exp_cause_exe2mem;
 wire [31: 0] exp_tval_exe2mem;
 wire [31: 0] instruction_pc_exe2mem;
+wire         instruction_pc_vld_exe2mem;
 wire         csr_we_exe2mem_wb;
 wire [31: 0] csr_we_addr_exe2mem_wb;
 wire [31: 0] csr_we_data_exe2mem_wb;
@@ -281,9 +288,11 @@ wire         sys_jump_mem2mem_wb;
 wire [ 1: 0] sys_jump_csr_addr_mem2mem_wb;
 wire [31: 0] d_rtrn_data_mmu2mem_wb;
 wire         exp_vld_mem2mem_wb;
+wire         exp_isinterrupt_mem2wb;
 wire [ 3: 0] exp_cause_mem2mem_wb;
 wire [31: 0] exp_tval_mem2mem_wb;
 wire [31: 0] instruction_pc_mem2mem_wb;
+wire         instruction_pc_vld_mem2wb;
 
 // ------------------------
 // mem_wb <-> csr
@@ -291,12 +300,15 @@ wire [31: 0] instruction_pc_mem2mem_wb;
 wire         sys_jump_mem_wb2csr;
 wire [ 1: 0] sys_jump_csr_addr_mem_wb2csr;
 wire         exp_vld_mem_wb2csr;
+wire         exp_isinterrupt_wb2csr;
 wire [ 3: 0] exp_cause_mem_wb2csr;
 wire [31: 0] exp_tval_mem_wb2csr;
 wire [31: 0] instruction_pc_mem_wb2csr;
+wire         instruction_pc_vld_wb2csr;
 wire         csr_we_mem_wb2csr;
 wire [31: 0] csr_we_addr_mem_wb2csr;
 wire [31: 0] csr_we_data_mem_wb2csr;
+wire [31: 0] mip_update_wb2csr;
 
 // ----------------------
 // csr <-> decode
@@ -683,7 +695,7 @@ decode Decode(
     .is_jalr_o(is_jalr2exe),
     .is_csr_instr_o(csr_we_dec2exe),
     .csr_imm_o(dec_csr_imm2csr),
-    .instr_valid_o(dec_instr_valid2csr),
+    .instr_valid_o(instruction_pc_vld_dec2exe),
 
     // to Execute, Cond_Branch_Predictor
     .is_branch_o(is_branch2exe),
@@ -830,12 +842,14 @@ execute Execute(
     .exp_vld_i(exp_vld_dec2exe),
     .exp_cause_i(exp_cause_dec2exe),
     .exp_tval_i(exp_tval_dec2exe),
+    .instruction_pc_vld_i(instruction_pc_vld_dec2exe),
 
     //Exception to Memory
     .exp_vld_o(exp_vld_exe2mem),
     .exp_cause_o(exp_cause_exe2mem),
     .exp_tval_o(exp_tval_exe2mem),
-    .instruction_pc_o(instruction_pc_exe2mem)
+    .instruction_pc_o(instruction_pc_exe2mem),
+    .instruction_pc_vld_o(instruction_pc_vld_exe2mem)
 );
 
 // =============================================================================
@@ -843,7 +857,26 @@ wire                     req_done_mem2wb;
 wire                     buffer_exp_vld_mem2wb;  
 wire [3 : 0]             buffer_exp_cause_mem2wb;
 wire [31: 0]             buffer_exp_tval_mem2wb; 
-wire [DATA_WIDTH-1 : 0]  buffer_data_mem2wb;    
+wire [DATA_WIDTH-1 : 0]  buffer_data_mem2wb;
+
+wire [2: 0]             regfile_input_sel_mem2wb;
+wire                    regfile_we_mem2wb;
+wire [4: 0]             rd_addr_mem2wb;
+wire                    mem_load_ext_sel_mem2wb;
+wire [1: 0]             mem_addr_alignment_mem2wb;
+wire [DATA_WIDTH-1 : 0] p_data_mem2wb;
+
+wire                    exp_vld_mem2wb;
+wire [ 3: 0]            exp_cause_mem2wb;
+wire [31: 0]            exp_tval_mem2wb;
+wire                    sys_jump_mem2wb;
+wire [ 1: 0]            sys_jump_csr_addr_mem2wb;
+wire [31: 0]            instruction_pc_mem2wb;
+wire                    csr_we_mem2wb;
+wire [31: 0]            csr_we_addr_mem2wb;
+wire [31: 0]            csr_we_data_mem2wb;
+wire [DATA_WIDTH-1 : 0] mem_data_mem2wb;
+wire [31: 0]            mip_update_mem2wb;
 
 
 memory_access Memory_Access(
@@ -880,17 +913,18 @@ memory_access Memory_Access(
     // Exception signal
     //.memory_alignment_exception_o(memory_alignment_exception),
 
-    .req_done_o(req_done_mem2wb),       
-    .buffer_exp_vld_o(buffer_exp_vld_mem2wb),
-    .buffer_exp_cause_o(buffer_exp_cause_mem2wb),
-    .buffer_exp_tval_o(buffer_exp_tval_mem2wb), 
-    .buffer_data_o(buffer_data_mem2wb),    
+    // .req_done_o(req_done_mem2wb),       
+    // .buffer_exp_vld_o(buffer_exp_vld_mem2wb),
+    // .buffer_exp_cause_o(buffer_exp_cause_mem2wb),
+    // .buffer_exp_tval_o(buffer_exp_tval_mem2wb), 
+    // .buffer_data_o(buffer_data_mem2wb),    
 
     //exception from execute
     .exp_vld_i(exp_vld_exe2mem),
     .exp_cause_i(exp_cause_exe2mem),
     .exp_tval_i(exp_tval_exe2mem),
     .instruction_pc_i(instruction_pc_exe2mem),
+    .instruction_pc_vld_i(instruction_pc_vld_exe2mem),
 
     //exception from mmu
     .exp_from_mmu_vld_i(d_exp_vld_mmu2mem),
@@ -899,22 +933,12 @@ memory_access Memory_Access(
 
     //exception to writeback
     .exp_vld_o(exp_vld_mem2mem_wb),
+    .exp_isinterrupt_o(exp_isinterrupt_mem2wb),
     .exp_cause_o(exp_cause_mem2mem_wb),
     .exp_tval_o(exp_tval_mem2mem_wb),
-    .instruction_pc_o(instruction_pc_mem2mem_wb)
-);
+    .instruction_pc_o(instruction_pc_mem2mem_wb),
+    .instruction_pc_vld_o(instruction_pc_vld_mem2wb),
 
-// =============================================================================
-writeback Writeback(
-    // Top-level system signals
-    .clk_i(clk_i),
-    .rst_i(rst_i),
-    .stall_i(stall_for_instr_fetch | stall_for_data_fetch | stall_from_exe),
-
-    // Processor pipeline flush signal.
-    .flush_i(flush2mem_wb || irq_taken),
-
-    // from Execute_Memory_Pipeline
     .regfile_we_i(exe_regfile_we2mem_wb),
     .rd_addr_i(exe_rd_addr2mem_wb),
     .regfile_input_sel_i(exe_regfile_input_sel2mem_wb),
@@ -925,8 +949,40 @@ writeback Writeback(
     .csr_we_addr_i(csr_we_addr_exe2mem_wb),
     .csr_we_data_i(csr_we_data_exe2mem_wb),
 
-    // from D-memory
-    .mem_data_i(d_rtrn_data_mmu2mem_wb),
+    //
+    .regfile_input_sel_o(regfile_input_sel_mem2wb),
+    .regfile_we_o(regfile_we_mem2wb),
+    .rd_addr_o(rd_addr_mem2wb),
+    .mem_load_ext_sel_o(mem_load_ext_sel_mem2wb),
+    .mem_addr_alignment_o(mem_addr_alignment_mem2wb),
+    .p_data_o(p_data_mem2wb),
+    .csr_we_o(csr_we_mem2wb),
+    .csr_we_addr_o(csr_we_addr_mem2wb),
+    .csr_we_data_o(csr_we_data_mem2wb),
+    .mem_data_o(mem_data_mem2wb),
+    .mip_update_o(mip_update_mem2wb),
+
+    // Interrupt requests.
+    .m_ext_irq_i(ext_irq_i), //Machine external interrupt
+    .m_tmr_irq_i(tmr_irq_i), //Machine timer interrupt
+    .m_sft_irq_i(sft_irq_i), //Machine software interrupt
+    .s_ext_irq_i(), //Supervisor external interrupt
+    .s_tmr_irq_i(), //Supervisor timer interrupt
+    .s_sft_irq_i(), //Supervisor software interrupt
+    .u_ext_irq_i(), //User external interrupt
+    .u_tmr_irq_i(), //User timer interrupt
+    .u_sft_irq_i(), //User software interrupt
+
+    //From CSR
+    .mstatus_ie_i(mstatus_ie_csr2mem), //{MIE, WPRI, SIE, UIE}
+    .mie_i(mie_csr2mem)
+);
+
+// =============================================================================
+writeback Writeback(
+    // Top-level system signals
+    .clk_i(clk_i),
+    .rst_i(rst_i),
 
     // to RegisterFile, Forwarding_Unit
     .rd_we_o(rd_we2wb),
@@ -937,31 +993,61 @@ writeback Writeback(
     .sys_jump_i(sys_jump_mem2mem_wb),
     .sys_jump_csr_addr_i(sys_jump_csr_addr_mem2mem_wb),
     .sys_jump_o(sys_jump_mem_wb2csr),
-    .sys_jump_csr_addr_o(sys_jump_csr_addr_mem_wb2csr),
-
-    .req_done_i(req_done_mem2wb),       
-    .buffer_exp_vld_i(buffer_exp_vld_mem2wb),
-    .buffer_exp_cause_i(buffer_exp_cause_mem2wb),
-    .buffer_exp_tval_i(buffer_exp_tval_mem2wb), 
-    .buffer_data_i(buffer_data_mem2wb),    
+    .sys_jump_csr_addr_o(sys_jump_csr_addr_mem_wb2csr),  
 
     //Exception From Memory
     .exp_vld_i(exp_vld_mem2mem_wb),
+    .exp_isinterrupt_i(exp_isinterrupt_mem2wb),
     .exp_cause_i(exp_cause_mem2mem_wb),
     .exp_tval_i(exp_tval_mem2mem_wb),
     .instruction_pc_i(instruction_pc_mem2mem_wb),
+    .instruction_pc_vld_i(instruction_pc_vld_mem2wb),
 
     //To CSR
     .csr_we_o(csr_we_mem_wb2csr),
     .csr_we_addr_o(csr_we_addr_mem_wb2csr),
     .csr_we_data_o(csr_we_data_mem_wb2csr),
     .exp_vld_o(exp_vld_mem_wb2csr),
+    .exp_isinterrupt_o(exp_isinterrupt_wb2csr),
     .exp_cause_o(exp_cause_mem_wb2csr),
     .exp_tval_o(exp_tval_mem_wb2csr),
-    .instruction_pc_o(instruction_pc_mem_wb2csr)
+    .instruction_pc_o(instruction_pc_mem_wb2csr),
+    .instruction_pc_vld_o(instruction_pc_vld_wb2csr),
+    .mip_update_o(mip_update_wb2csr),
+
+    //From Memory
+    .regfile_input_sel_i(regfile_input_sel_mem2wb),
+    .regfile_we_i(regfile_we_mem2wb),
+    .rd_addr_i(rd_addr_mem2wb),
+    .mem_load_ext_sel_i(mem_load_ext_sel_mem2wb),
+    .mem_addr_alignment_i(mem_addr_alignment_mem2wb),
+    .p_data_i(p_data_mem2wb),
+    .csr_we_i(csr_we_mem2wb),
+    .csr_we_addr_i(csr_we_addr_mem2wb),
+    .csr_we_data_i(csr_we_data_mem2wb),
+    .mem_data_i(mem_data_mem2wb),
+    .mip_update_i(mip_update_mem2wb)
+
 );
 
 // =============================================================================
+reg [31: 0] nxt_unwb_PC;
+always@(*) begin
+    if(instruction_pc_vld_wb2csr)
+        nxt_unwb_PC = instruction_pc_mem_wb2csr;
+    else if(instruction_pc_vld_mem2wb)
+        nxt_unwb_PC = instruction_pc_mem2mem_wb;
+    else if(instruction_pc_vld_exe2mem)
+        nxt_unwb_PC = instruction_pc_exe2mem;
+    else if(instruction_pc_vld_dec2exe)
+        nxt_unwb_PC = dec_pc2exe;
+    else if(fet_valid2dec)
+        nxt_unwb_PC = fet_pc2dec;
+    else
+        nxt_unwb_PC = i_rtrn_vaddr_mmu2fet;
+end
+
+
 csr_file #( .HART_ID(HART_ID) )
 CSR(
     // Top-level system signals
@@ -980,12 +1066,12 @@ CSR(
     .csr_we_data_i(csr_we_data_mem_wb2csr),
 
     // Interrupt
-    .ext_irq_i(ext_irq_i),
-    .tmr_irq_i(tmr_irq_i),
-    .sft_irq_i(sft_irq_i),
+    // .ext_irq_i(ext_irq_i),
+    // .tmr_irq_i(tmr_irq_i),
+    // .sft_irq_i(sft_irq_i),
     .irq_taken_o(irq_taken),
     .PC_handler_o(PC_handler),
-    .nxt_unwb_PC_i(instruction_pc_mem_wb2csr),
+    .nxt_unwb_PC_i(nxt_unwb_PC),
 
     // System Jump operation
     .sys_jump_i(sys_jump_mem_wb2csr),
@@ -1007,8 +1093,16 @@ CSR(
 
     // Exception requests
     .exp_vld_i(exp_vld_mem_wb2csr),
+    .exp_isinterrupt_i(exp_isinterrupt_wb2csr),
     .exp_cause_i(exp_cause_mem_wb2csr),
-    .exp_tval_i(exp_tval_mem_wb2csr)
+    .exp_tval_i(exp_tval_mem_wb2csr),
+
+    //To Memory
+    .mstatus_ie_o(mstatus_ie_csr2mem), //{MIE, WPRI,SIE ,UIE}
+    .mie_o(mie_csr2mem),
+
+    //
+    .mip_update_i(mip_update_wb2csr)
 );
 
 // =============================================================================

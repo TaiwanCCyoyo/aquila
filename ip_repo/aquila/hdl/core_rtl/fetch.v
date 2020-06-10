@@ -146,7 +146,7 @@ begin
 end
 
 // *****************************
-/*
+
 always @(posedge clk_i)
 begin
     stall_delay <= stall_i;
@@ -165,7 +165,7 @@ begin
     else
         instruction_tcm = instruction_delay;
 end
-*/
+
 always @(posedge clk_i)
 begin
     if (rst_i)
@@ -179,9 +179,9 @@ begin
 end
 
 always @(*) begin
-    /*if(ppc_i[31:28] == 4'b0)
+    if(ppc_i[31:28] == 4'b0)
         instruction_o = instruction_tcm;
-    else*/
+    else
         instruction_o = instruction_dram;
 end
 

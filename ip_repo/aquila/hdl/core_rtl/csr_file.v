@@ -75,14 +75,12 @@ module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
 
 
     // Interrupt requests.
-    input  wire                    ext_irq_i, //Machine external interrupt
-    input  wire                    tmr_irq_i, //Machine timer interrupt
-    input  wire                    sft_irq_i, //Machine software interrupt
+    // input  wire                    ext_irq_i, //Machine external interrupt
+    // input  wire                    tmr_irq_i, //Machine timer interrupt
+    // input  wire                    sft_irq_i, //Machine software interrupt
     output wire                    irq_taken_o,
     output wire [ADDR_WIDTH-1 : 0] PC_handler_o,
     input  wire [ADDR_WIDTH-1 : 0] nxt_unwb_PC_i,
-
-    
 
     // System Jump operation
     input  wire                    sys_jump_i,
@@ -104,8 +102,16 @@ module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
 
     // Exception requests     
     input wire                     exp_vld_i,
+    input wire                     exp_isinterrupt_i,
     input wire [ 3: 0]             exp_cause_i,
-    input wire [31: 0]             exp_tval_i
+    input wire [31: 0]             exp_tval_i,
+
+    //To Memory
+    output wire [ 3: 0]            mstatus_ie_o, //{MIE, WPRI,SIE ,UIE}
+    output wire [31: 0]            mie_o,
+
+    //
+    input  wire [31: 0]            mip_update_i
 );
 
 //==============================================================================================
@@ -276,6 +282,8 @@ reg  [DATA_WIDTH-1 : 0] sscratch_r;
 reg  [DATA_WIDTH-1 : 0] sepc_r;
 reg  [DATA_WIDTH-1 : 0] scause_r, scause_d;
 reg  [DATA_WIDTH-1 : 0] stval_r;  // for exception
+reg  [DATA_WIDTH-1 : 0] sedeleg_r;  // for exception
+reg  [DATA_WIDTH-1 : 0] sideleg_r;  // for interrupt
 
 //U-Mode register
 reg  [63           : 0] cycle_r;
@@ -295,7 +303,6 @@ reg  [DATA_WIDTH-1 : 0] csr_data;
 
 //Interrupt
 reg          trap_to_M;
-reg  [ 3: 0] interrupt_cause;
 reg          irq_taken;
 reg  [31: 0] PC_handler;
 
@@ -327,7 +334,7 @@ always @(posedge clk_i)
 begin
     if (rst_i)
     begin
-        mstatus_r <= {19'b0, `M_MODE, 7'b0, 1'b1, 3'b0};//MPP <= 2'b11(M-mode) MIE <= 1
+        mstatus_r <= {19'b0, `M_MODE, 7'b0, 1'b1, 3'b0};//MPP <= 2'b11(M-mode)
     end
     else if (irq_taken)
         if(trap_to_M)
@@ -404,10 +411,7 @@ begin
     end
     else
     begin
-        //mip_MEIP <= ext_irq_i
-        //mip_MTIP <= tmr_irq_i
-        //mip_MSIP <= sft_irq_i
-        mip_r <= {20'b0, ext_irq_i, 3'b0, tmr_irq_i, 3'b0, sft_irq_i, 3'b0} & mie_r;
+        mip_r <= mip_update_i;
     end
 end
 
@@ -495,8 +499,7 @@ begin
     mcause_d = mcause_r;
     if(irq_taken && trap_to_M)
     begin
-        if(!exp_vld_i) mcause_d = {1'b1, 27'b0, interrupt_cause};
-        else           mcause_d = {1'b0, 27'b0, exp_cause_i};     
+        mcause_d = {exp_isinterrupt_i, 27'b0, exp_cause_i};     
     end
 end
 
@@ -516,7 +519,7 @@ begin
     begin
         mtval_r <= 32'b0;
     end
-    else if(exp_vld_i && trap_to_M)
+    else if(exp_vld_i && !exp_isinterrupt_i && trap_to_M)
     begin
         if( (exp_cause_i >= 'd0  && exp_cause_i <= 'd1)  ||
             (exp_cause_i >= 'd4  && exp_cause_i <= 'd7)  ||
@@ -557,7 +560,7 @@ begin
     begin
         mideleg_r <= 32'b0;
     end
-    else if (csr_we_i && csr_we_addr_i == `CSR_MEDELEG)
+    else if (csr_we_i && csr_we_addr_i == `CSR_MIDELEG)
     begin
         mideleg_r <= csr_we_data_i;
     end
@@ -732,7 +735,7 @@ begin
     scause_d = scause_r;
     if(irq_taken && !trap_to_M)
     begin
-        scause_d = {1'b0, 27'b0, exp_cause_i};
+        scause_d = {exp_isinterrupt_i, 27'b0, exp_cause_i};
     end
 end
 
@@ -745,7 +748,7 @@ begin
     begin
         stval_r <= 32'b0;
     end
-    else if(exp_vld_i && !trap_to_M)
+    else if(exp_vld_i && !exp_isinterrupt_i && !trap_to_M)
     begin
         if( (exp_cause_i >= 'd0  && exp_cause_i <= 'd1)  ||
             (exp_cause_i >= 'd4  && exp_cause_i <= 'd7)  ||
@@ -758,6 +761,37 @@ begin
     else if (csr_we_i && csr_we_addr_i == `CSR_STVAL)
     begin
         stval_r <= csr_we_data_i;
+    end
+end
+
+//-----------------------------------------------
+// sedeleg
+//------------------------------------------------
+
+always @(posedge clk_i)
+begin
+    if (rst_i)
+    begin
+        sedeleg_r <= 32'b0;
+    end
+    else if (csr_we_i && csr_we_addr_i == `CSR_SEDELEG)
+    begin
+        sedeleg_r <= csr_we_data_i;
+    end
+end
+
+//-----------------------------------------------
+// sideleg
+//------------------------------------------------
+always @(posedge clk_i)
+begin
+    if (rst_i)
+    begin
+        sideleg_r <= 32'b0;
+    end
+    else if (csr_we_i && csr_we_addr_i == `CSR_SIDELEG)
+    begin
+        sideleg_r <= csr_we_data_i;
     end
 end
 
@@ -840,6 +874,10 @@ begin
             csr_data = scause_r;
         `CSR_STVAL:
             csr_data = stval_r;
+        `CSR_SEDELEG:
+            csr_data = sedeleg_r;
+        `CSR_SIDELEG:
+            csr_data = sideleg_r;
 
         `CSR_CYCLE:                       // `CSR_CYCLE: 
             csr_data = mcycle_r[31 : 0];  //     csr_data = cycle_r[31 : 0];      
@@ -865,48 +903,19 @@ end
 // mie[ 8] == mie_UEIE mie[4] == mie_UTIE mie[0] == mie_USIE
 always@(*) begin
     irq_taken         = 0;
-    interrupt_cause   = 0; 
     trap_to_M         = 1;
 
-    if(!exp_vld_i)
-    begin
-        case(privilege_lvl_r)
-            `M_MODE: if(mstatus_r[3])
-                    begin
-                        //ext > tmr > sft
-                        if(ext_irq_i & mie_r[11])     
-                        begin
-                            irq_taken       = 1;
-                            trap_to_M       = 1;
-                            interrupt_cause = 'd11;
-                        end
-                        else if(tmr_irq_i & mie_r[7])
-                        begin
-                            irq_taken      = 1;
-                            trap_to_M      = 1;
-                            interrupt_cause = 'd7;
-                        end
-                        else if(sft_irq_i & mie_r[3])
-                        begin
-                            irq_taken       = 1;
-                            trap_to_M       = 1;
-                            interrupt_cause = 'd3;
-                        end
-                        else
-                        begin
-                            irq_taken = 0;
-                            trap_to_M = 1;
-                        end
-                    end
-            `S_MODE: irq_taken = 0;
-            `U_MODE: irq_taken = 0;
-            default: irq_taken = 0;
-        endcase
-    end
-    else
+    if(exp_vld_i)
     begin
         irq_taken = 1;
-        trap_to_M = (privilege_lvl_r == `M_MODE)?1:~medeleg_r[exp_cause_i];
+        if(exp_isinterrupt_i)
+        begin
+            trap_to_M = (privilege_lvl_r == `M_MODE)?1:~mideleg_r[exp_cause_i];
+        end
+        else
+        begin
+            trap_to_M = (privilege_lvl_r == `M_MODE)?1:~medeleg_r[exp_cause_i];
+        end
     end
 end
 
@@ -990,5 +999,9 @@ assign asid_o                = satp_r[30:22];
 assign ld_st_privilege_lvl_o = (mstatus_r[17])? mstatus_r[12:11] : privilege_lvl_r;//MPRV
 assign mxr_o                 = mstatus_r[19];
 assign sum_o                 = mstatus_r[18];
+
+//To memory
+assign mie_o                 = mie_r;
+assign mstatus_ie_o          = mstatus_r[3:0];
 
 endmodule   // csr_file

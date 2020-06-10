@@ -1,2 +1,0 @@
-`define VERERLATE_DRAM
-`define VERERLATE
