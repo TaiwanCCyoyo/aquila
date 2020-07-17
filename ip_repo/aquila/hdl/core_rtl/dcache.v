@@ -172,8 +172,6 @@ always@(posedge clk_i) begin
         p_addr_r <= 0;
     end else if(p_req_i) begin
         p_addr_r <= p_addr_i;
-    end else begin
-        p_addr_r <= 0;
     end
 end
 

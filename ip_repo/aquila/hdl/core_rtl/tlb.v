@@ -61,6 +61,9 @@ module tlb # (
 
     // Flush
     input wire          flush_i,
+    input  wire         flush_type_i,
+    input  wire [31: 0] fulsh_vaddr_i,
+    input  wire [31: 0] fulsh_asid_i,
 
     // Enable
     input wire          enable_i,
@@ -184,7 +187,7 @@ always@(posedge clk_i) begin
         end
     end else if(flush_i) begin
         for(i = 0; i < TLB_ENTRIES; i = i +1) begin
-            content_valid_r[i]    <= 'b0;
+            content_valid_r[i]    <= content_G[i];
         end
     end else if(update_vld_i) begin
         content_valid_r[FIFO_cnt_r] <= 'b1;

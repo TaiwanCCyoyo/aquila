@@ -81,7 +81,7 @@ module fetch #( parameter DATA_WIDTH = 32 )
 
     // from Program_Counter
     input  [DATA_WIDTH-1 : 0]     pc_i,
-    input  [DATA_WIDTH-1 : 0]     ppc_i,
+    // input  [DATA_WIDTH-1 : 0]     ppc_i,
 
     // from Cond_Branch_Predictor
     input                         cond_branch_hit_IF_i,
@@ -95,6 +95,7 @@ module fetch #( parameter DATA_WIDTH = 32 )
 
     // to the Execute Stage
     output reg [DATA_WIDTH-1 : 0] pc_o,
+    output reg                    pc_vld_o,
     output reg                    instr_valid_o,
     output reg                    cond_branch_hit_ID_o,
     output reg                    cond_branch_result_ID_o,
@@ -111,12 +112,12 @@ module fetch #( parameter DATA_WIDTH = 32 )
     output reg  [31: 0]            exp_tval_o
 );
 
-// reg [DATA_WIDTH-1 : 0] instruction_tcm;
-// reg [DATA_WIDTH-1 : 0] instruction_dram;
+reg [DATA_WIDTH-1 : 0] instruction_tcm;
+reg [DATA_WIDTH-1 : 0] instruction_dram;
 
-// reg stall_delay;
-// reg flush_delay;
-// reg [31: 0] instruction_delay;
+reg stall_delay;
+reg flush_delay;
+reg [31: 0] instruction_delay;
 
 // **********
 //  original
@@ -179,8 +180,8 @@ module fetch #( parameter DATA_WIDTH = 32 )
 // end
 
 // always @(*) begin
-//     if(pc_i[31:28] == 4'b0)
-//         instruction_o = instruction_tcm;
+//     if(ppc_i[31:28] == 4'b0)
+//         instruction_o = instruction_dram;
 //     else
 //         instruction_o = instruction_dram;
 // end
@@ -202,6 +203,7 @@ begin
     if (rst_i)
     begin
         pc_o <= 32'h00000000;
+        pc_vld_o <= 0;
         instr_valid_o <= 0;
         cond_branch_hit_ID_o <= 0;
         cond_branch_result_ID_o <= 0;
@@ -213,6 +215,7 @@ begin
     else if (stall_i)
     begin
         pc_o <= pc_o;
+        pc_vld_o <= pc_vld_o;
         instr_valid_o <= instr_valid_o;
         cond_branch_hit_ID_o <= cond_branch_hit_ID_o;
         cond_branch_result_ID_o <= cond_branch_result_ID_o;
@@ -224,6 +227,7 @@ begin
     else if (flush_i)
     begin
         pc_o <= pc_i;
+        pc_vld_o <= 0;
         instr_valid_o <= 0;
         cond_branch_hit_ID_o <= 0;
         cond_branch_result_ID_o <= 0;
@@ -235,6 +239,7 @@ begin
     else if(exp_from_mmu_vld_i)
     begin
         pc_o <= pc_i;
+        pc_vld_o <= 1;
         instr_valid_o <= 0; // default: instruction is valid
         cond_branch_hit_ID_o <= 0;
         cond_branch_result_ID_o <= 0;
@@ -246,6 +251,7 @@ begin
     else
     begin
         pc_o <= pc_i;
+        pc_vld_o <= 1;
         instr_valid_o <= 1; // default: instruction is valid
         cond_branch_hit_ID_o <= cond_branch_hit_IF_i;
         cond_branch_result_ID_o <= cond_branch_result_IF_i;

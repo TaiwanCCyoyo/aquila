@@ -241,14 +241,13 @@ assign p_d_strobe = ((~d_req_pre && p_d_req) || (p_d_req && p_d_ready));
 // ----------------------------------------------------------------------------
 //  Instiantiation of the dual-port tightly-coupled scratchpad memory module.
 //  0x00000000 ~ 0x0FFFFFFF
-localparam TCM_SIZE_IN_WORDS = 67108864; // 64MB
+localparam TCM_SIZE_IN_WORDS = 65536; // 64KB
 localparam TCM_ADDR_WIDTH = $clog2(TCM_SIZE_IN_WORDS);
 
 sram_dp #(.DATA_WIDTH(DATA_WIDTH), .N_ENTRIES(TCM_SIZE_IN_WORDS))
 TCM(
     // Instruction
     .clk1_i(clk_i),
-    .rst1_i(rst_i),
     .en1_i(p_i_req && (ins_sel == 0)),
     .we1_i(1'b0),
     .be1_i(4'b1111),

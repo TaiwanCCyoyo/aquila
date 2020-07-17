@@ -111,7 +111,7 @@ module memory_access #( parameter DATA_WIDTH = 32 )
     output wire [31: 0]             instruction_pc_o,
     output wire                     instruction_pc_vld_o,
 
-    //to Execute Execute_Memory_Pipeline
+    //from Execute Execute_Memory_Pipeline
     input  wire                    regfile_we_i,
     input  wire [4 : 0]            rd_addr_i,
     input  wire [2 : 0]            regfile_input_sel_i,
@@ -121,6 +121,18 @@ module memory_access #( parameter DATA_WIDTH = 32 )
     input  wire                    csr_we_i,
     input  wire [11: 0]            csr_we_addr_i,
     input  wire [DATA_WIDTH-1 : 0] csr_we_data_i,
+
+    //Supervisor Instructions
+    input  wire                    sfence_i,
+    input  wire                    sfence_type_i,  
+    input  wire [DATA_WIDTH-1 : 0] rs1_data_i,  
+    input  wire [DATA_WIDTH-1 : 0] rs2_data_i,
+
+    //To controller
+    output wire                    sfence_o,
+    output wire                    sfence_type_o,  
+    output wire [DATA_WIDTH-1 : 0] rs1_data_o,  
+    output wire [DATA_WIDTH-1 : 0] rs2_data_o,
 
     //to Writeback Memory_Writeback_Pipeline
     output wire [2: 0]             regfile_input_sel_o,
@@ -623,7 +635,7 @@ end
 //-----------------------------------------------
 // Memory access
 //-----------------------------------------------
-assign req_vld_o              = (dS_nxt == d_WAIT);      
+assign req_vld_o              = (dS == d_IDLE) && ((exe_re_i || exe_we_i) && !memory_alignment_exception && !flush_i && !req_done);      
 assign req_vaddr_o            = mem_addr_i;
 assign req_rw_o               = exe_we_i;
 assign data_o                 = data;
@@ -653,6 +665,11 @@ assign csr_we_data_o        = csr_we_data_r;
 assign mem_data_o           = mem_data_r;
 assign mip_update_o         = mip_update_r;
 assign exp_isinterrupt_o    = exp_isinterrupt_r;
+
+assign sfence_o             = sfence_i;
+assign sfence_type_o        = sfence_type_i;
+assign rs1_data_o           = rs1_data_i;
+assign rs2_data_o           = rs2_data_i;
 
 
 

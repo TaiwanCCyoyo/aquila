@@ -96,7 +96,10 @@ module program_counter #( parameter ADDR_WIDTH = 32, DATA_WIDTH = 32 )
     input  [ADDR_WIDTH-1 : 0] branch_restore_addr_i,  // already increment 4 in execute
 
     // to i-cache
-    output [ADDR_WIDTH-1 : 0] pc_o
+    output [ADDR_WIDTH-1 : 0] pc_o,
+
+    input wire         sfence_i,
+    input wire [31: 0] dec_pc2exe_i
 );
 
 /* -------------------------------------------------------------------- *
@@ -111,14 +114,48 @@ wire [ADDR_WIDTH-1 : 0] pc_increment;
 
 assign pc_increment = pc_r + pc_offset;
 
+reg irq_taken_hold;
+reg [31: 0] PC_handler_hold;
+
+always@(posedge clk_i)
+begin
+    if(rst_i)
+    begin
+        irq_taken_hold <= 0;
+        PC_handler_hold <= 0;
+    end
+    else if (stall_i)
+    begin
+        if(!irq_taken_hold)
+        begin
+            irq_taken_hold <= irq_taken_i;
+            PC_handler_hold <= PC_handler_i;
+        end
+        else
+        begin
+            irq_taken_hold <= irq_taken_hold;
+            PC_handler_hold <= PC_handler_hold;
+        end
+    end
+    else
+    begin
+        irq_taken_hold <= 0;
+        PC_handler_hold <= 0;
+    end
+end
+
 always @(posedge clk_i)
 begin
     if (rst_i)
         pc_r <= init_pc_addr_i;
     else if (stall_i)
         pc_r <= pc_r;
+    else if(irq_taken_hold)
+        pc_r <= PC_handler_hold;
     else if (irq_taken_i)
         pc_r <= PC_handler_i;
+    else if(sfence_i)
+        pc_r <= dec_pc2exe_i;
     else
         // with branch predictor
         if (branch_taken_i & !uncond_branch_hit_EXE_i & !cond_branch_hit_EXE_i)

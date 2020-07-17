@@ -139,6 +139,13 @@ module execute #(parameter DATA_WIDTH = 32)
     output reg                     sys_jump_o,
     output reg  [ 1: 0]            sys_jump_csr_addr_o,
 
+    //Supervisor Instructions
+    input  wire                    sfence_i,
+    output reg                     sfence_o,
+    input  wire                    sfence_type_i,
+    output reg                     sfence_type_o,//0=>rs1=x0,1=>rs1!=x0
+    output reg [DATA_WIDTH-1 : 0]  rs1_data_o,
+
     //Exception from Decode
     input  wire                    exp_vld_i,
     input  wire [ 3: 0]            exp_cause_i,
@@ -284,6 +291,10 @@ begin
         csr_we_o            <= 0;
         csr_we_addr_o       <= 0;
         csr_we_data_o       <= 0;
+
+        sfence_o            <= 0;
+        sfence_type_o       <= 0;
+        rs1_data_o          <= 0;
     end
     else if (stall_i)
     begin
@@ -306,6 +317,10 @@ begin
         csr_we_o            <= csr_we_o;
         csr_we_addr_o       <= csr_we_addr_o;
         csr_we_data_o       <= csr_we_data_o;
+
+        sfence_o            <= sfence_o;
+        sfence_type_o       <= sfence_type_o;
+        rs1_data_o          <= rs1_data_o;
     end
     else if(flush_i)
     begin
@@ -328,6 +343,10 @@ begin
         csr_we_o            <= 0;
         csr_we_addr_o       <= 0;
         csr_we_data_o       <= 0;
+
+        sfence_o            <= 0;
+        sfence_type_o       <= 0;
+        rs1_data_o          <= 0;
     end
     else
     begin
@@ -350,6 +369,10 @@ begin
         csr_we_o            <= csr_we_i;
         csr_we_addr_o       <= csr_we_addr_i;
         csr_we_data_o       <= csr_update_data;
+
+        sfence_o            <= sfence_i;
+        sfence_type_o       <= sfence_type_i;
+        rs1_data_o          <= rs1_data_i;
     end
 end
 

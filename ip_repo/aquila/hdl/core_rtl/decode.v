@@ -69,6 +69,7 @@ module decode #(parameter DATA_WIDTH = 32)
 
     // Signals from the Fetch Stage.
     input [DATA_WIDTH-1 : 0]  pc_i,
+    input                     pc_vld_i,
     input [DATA_WIDTH-1 : 0]  instruction_i,
     input                     instr_valid_i,
     input                     cond_branch_hit_ID_i,
@@ -103,7 +104,7 @@ module decode #(parameter DATA_WIDTH = 32)
     output reg                    uncond_branch_hit_EXE_o,
     output reg                    is_csr_instr_o,
     output reg [4: 0]             csr_imm_o,
-    output reg                    instr_valid_o,
+    output reg                    instr_pc_valid_o,
 
 
     // to CSR
@@ -139,6 +140,10 @@ module decode #(parameter DATA_WIDTH = 32)
     output reg                     sys_jump_o,
     output reg  [ 1: 0]            sys_jump_csr_addr_o,
 
+    //Supervisor Instructions
+    output reg                     sfence_o,
+    output reg                     sfence_type_o,//0=>rs1=x0,1=>rs1!=x0
+    
     //Exception from Fetch
     input  wire                    exp_vld_i,
     input  wire [ 3: 0]            exp_cause_i,
@@ -254,7 +259,7 @@ assign immJ = { {12{rv32_instr[31]}}, rv32_instr[19: 12],
 // wire opcode_1_0_00 = (opcode[1:0] == 2'b00);  // rvc
 // wire opcode_1_0_01 = (opcode[1:0] == 2'b01);  // rvc
 // wire opcode_1_0_10 = (opcode[1:0] == 2'b10);  // rvc
-// wire opcode_1_0_11 = (opcode[1: 0] == 2'b11); // rv32
+wire opcode_1_0_11 = (opcode[1: 0] == 2'b11); // rv32
 
 wire opcode_4_2_000 = (opcode[4: 2] == 3'b000);
 wire opcode_4_2_001 = (opcode[4: 2] == 3'b001);
@@ -313,8 +318,8 @@ wire rv32_op = opcode_6_5_01 & opcode_4_2_100;      // OP opcode
 wire rv32_op_imm = opcode_6_5_00 & opcode_4_2_100;  // OP-IMM opcode
 wire rv32_jal = opcode_6_5_11 & opcode_4_2_011;     // JAL opcode
 wire rv32_jalr = opcode_6_5_11 & opcode_4_2_001;    // JARL opcode
-wire rv32_load = opcode_6_5_00 & opcode_4_2_000;    // LOAD opcode
-wire rv32_store = opcode_6_5_01 & opcode_4_2_000;   // STORE opcode
+wire rv32_load = opcode_6_5_00 & opcode_4_2_000 & opcode_1_0_11;    // LOAD opcode
+wire rv32_store = opcode_6_5_01 & opcode_4_2_000 & opcode_1_0_11;   // STORE opcode
 wire rv32_branch = opcode_6_5_11 & opcode_4_2_000;  // BRANCH opcode
 wire rv32_lui = opcode_6_5_01 & opcode_4_2_101;     // LUI opcode
 wire rv32_auipc = opcode_6_5_00 & opcode_4_2_101;   // AUIPC opcode
@@ -377,6 +382,12 @@ wire rv32_lhu = rv32_load & rv32_funct3_101;
 wire rv32_sb = rv32_store & rv32_funct3_000;
 wire rv32_sh = rv32_store & rv32_funct3_001;
 wire rv32_sw = rv32_store & rv32_funct3_010;
+
+// ================================================================================
+// Supervisor Instructions
+//
+wire rv32_sfence_vma = rv32_funct7_0001001 && rv32_funct3_000 && opcode_6_5_11 && opcode_4_2_100 && opcode_1_0_11;
+wire rv32_sfence_type = (rs1_addr_o != 0);
 
 // ================================================================================
 // Exception
@@ -505,11 +516,13 @@ begin
         rs2_addr2fwd_o <= 0;
         is_csr_instr_o <= 0;
         csr_imm_o <= 0;
-        instr_valid_o <= 0;
+        instr_pc_valid_o <= 0;
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
 
+        sfence_o <= 0;
+        sfence_type_o <= 0;
         
         sys_jump_o <= 0;
         sys_jump_csr_addr_o <= 0;
@@ -545,10 +558,13 @@ begin
         rs2_addr2fwd_o <= rs2_addr2fwd_o;
         is_csr_instr_o <= is_csr_instr_o;
         csr_imm_o <= csr_imm_o;
-        instr_valid_o <= instr_valid_o;
+        instr_pc_valid_o <= instr_pc_valid_o;
         cond_branch_hit_EXE_o <= cond_branch_hit_EXE_o;
         cond_branch_result_EXE_o <= cond_branch_result_EXE_o;
         uncond_branch_hit_EXE_o <= uncond_branch_hit_EXE_o;
+
+        sfence_o <= sfence_o;
+        sfence_type_o <= sfence_type_o;
 
         sys_jump_o <= sys_jump_o;
         sys_jump_csr_addr_o <= sys_jump_csr_addr_o;
@@ -584,10 +600,13 @@ begin
         rs2_addr2fwd_o <= 0;
         is_csr_instr_o <= 0;
         csr_imm_o <= 0;
-        instr_valid_o <= 0;
+        instr_pc_valid_o <= 0;
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
+
+        sfence_o <= 0;
+        sfence_type_o <= 0;
 
         sys_jump_o <= 0;
         sys_jump_csr_addr_o <= 0;
@@ -623,10 +642,13 @@ begin
         rs2_addr2fwd_o <= 0;
         is_csr_instr_o <= 0;
         csr_imm_o <= 0;
-        instr_valid_o <= 1;
+        instr_pc_valid_o <= 1;
         cond_branch_hit_EXE_o <= 0;
         cond_branch_result_EXE_o <= 0;
         uncond_branch_hit_EXE_o <= 0;
+
+        sfence_o <= 0;
+        sfence_type_o <= 0;
 
         sys_jump_o <= 0;
         sys_jump_csr_addr_o <= 0;
@@ -662,10 +684,13 @@ begin
         rs2_addr2fwd_o <= rs2_addr_o;
         is_csr_instr_o <= is_csr_instr;
         csr_imm_o <= csr_imm;
-        instr_valid_o <= instr_valid_i;
+        instr_pc_valid_o <= pc_vld_i;
         cond_branch_hit_EXE_o <= cond_branch_hit_ID_i;
         cond_branch_result_EXE_o <= cond_branch_result_ID_i;
         uncond_branch_hit_EXE_o <= uncond_branch_hit_ID_i;
+
+        sfence_o <= rv32_sfence_vma;
+        sfence_type_o <= rv32_sfence_type;
 
         sys_jump_o <= sys_jump;
         sys_jump_csr_addr_o <= sys_jump_csr_addr;

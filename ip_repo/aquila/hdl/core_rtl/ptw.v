@@ -174,7 +174,7 @@ assign rtrn_data_V          = rtrn_data_i[0];
 //-----------------------------------------------
 // MMU req
 //-----------------------------------------------
-assign req_vld_o         = (S == Look_up && !rtrn_vld_i);
+assign req_vld_o         = (S == Look_up);
 assign req_rw_o          = 'b0; //read only
 assign req_byte_enable_o = 'b1111;
 assign req_addr_o        = req_addr_r[31:0];
@@ -330,29 +330,32 @@ assign d_exp_vld_o   = exception_vld & (~work_for_itlb_r);
 
 
 
-always@(*) begin
-    exception_vld = 0;
-    if(S == Look_up) begin
+always@(posedge clk_i) begin
+    if(rst_i) begin
+        exception_vld <= 0;
+    end else if(S == Look_up) begin
         if(rtrn_vld_i) begin
             if(~rtrn_data_V || 
                 (rtrn_data_W && ~rtrn_data_R)) begin
                     //page fault
-                    exception_vld = 1;
+                    exception_vld <= 1;
             end else begin
                 if(rtrn_data_X || rtrn_data_R) begin
                     //leaf page
-                    exception_vld = 0;
+                    exception_vld <= 0;
                 end else begin
                     if(!pte_lvl_r) begin
                         //Pointer to next level
-                        exception_vld = 0;
+                        exception_vld <= 0;
                     end else begin
                         //Page fault
-                        exception_vld = 1;
+                        exception_vld <= 1;
                     end 
                 end
             end
         end
+    end else begin
+        exception_vld <= 0;
     end
 end
 

@@ -89,7 +89,19 @@ module pipeline_control(
     output       flush2mem_o,
     
     // that stall Program_Counter and Fetch_Decode_Pipeline  due to load-use data hazard,
-    output       stall_from_hazard_o
+    output       stall_from_hazard_o,
+
+    //from memory_access
+    input wire                    sfence_i,
+    input wire                    sfence_type_i,  
+    input wire [31: 0]            rs1_data_i,  
+    input wire [31: 0]            rs2_data_i,
+
+    //to mmu
+    output wire                    tlb_fulsh_o,
+    output wire                    tlb_flush_type_o,
+    output wire [31: 0]            tlb_fulsh_vaddr_o,
+    output wire [31: 0]            tlb_fulsh_asid_o
 );
 
 wire is_rs1_rd_DEC_EXE_same;
@@ -112,10 +124,15 @@ assign branch_flush = branch_taken;
 // ================================================================================
 //  Output signals
 //
-assign flush2fet_o = branch_flush | sys_jump_i;
-assign flush2dec_o = branch_flush | is_load_use | illegal_instr_i | sys_jump_i;
-assign flush2exe_o = sys_jump_i;
+assign flush2fet_o = branch_flush | sys_jump_i | sfence_i;
+assign flush2dec_o = branch_flush | is_load_use | illegal_instr_i | sys_jump_i | sfence_i;
+assign flush2exe_o = sys_jump_i | sfence_i;
 assign flush2mem_o = sys_jump_i;
 assign stall_from_hazard_o = is_load_use;
+
+assign tlb_fulsh_o       = sfence_i;
+assign tlb_flush_type_o  = sfence_type_i;
+assign tlb_fulsh_vaddr_o = rs1_data_i;
+assign tlb_fulsh_asid_o  = rs2_data_i;
 
 endmodule   // pipeline_control

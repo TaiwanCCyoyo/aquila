@@ -57,7 +57,6 @@ module sram_dp
 #(parameter DATA_WIDTH = 32, N_ENTRIES = 1024)
 (
     input                            clk1_i,
-    input                            rst1_i,
     input                            en1_i,
     input                            we1_i,
     input  [DATA_WIDTH/8-1 : 0]      be1_i,
@@ -78,10 +77,6 @@ module sram_dp
 
 reg [DATA_WIDTH-1 : 0] RAM [N_ENTRIES-1 : 0];
 
-wire [31:0] temp2  = RAM[2];
-wire [31:0] temp3  = RAM[3];
-wire [31:0] temp10 = RAM[10];
-
 `ifdef VERERLATE
     initial
     begin
@@ -99,9 +94,7 @@ wire [31:0] temp10 = RAM[10];
 // ------------------------------------
 always@(posedge clk1_i)
 begin
-    if(rst1_i)
-        ready1_o <= 0;
-    else if (en1_i)
+    if (en1_i)
     begin
         data1_o <= RAM[addr1_i];
         ready1_o <= 1;

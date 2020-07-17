@@ -153,8 +153,6 @@ begin
             // CY Hsiang 20200220 16:00
             if (!cache_hit && (p_addr_i[ADDR_WIDTH-1:ADDR_WIDTH-4] >= 4'h8) && (p_addr_i[ADDR_WIDTH-1:ADDR_WIDTH-4] <= 4'hb))
                 S_nxt =  RdfromMem;
-            else if(!p_req_i)
-                S_nxt = Idle;
             else
                 S_nxt = Next;
         RdfromMem:

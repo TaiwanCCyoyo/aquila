@@ -160,7 +160,7 @@ wire [ 1 : 0]           exe_input_sel2mem;
 wire [ 2 : 0]           exe_regfile_input_sel2mem_wb;
 
 // Memory Access.
-wire [DATA_WIDTH-1 : 0] data_o, data2mem_wb;
+wire [DATA_WIDTH-1 : 0] data2mem_wb;
 wire [ 3 : 0]           byte_write_sel;
 wire                    memory_alignment_exception;
 
@@ -229,7 +229,7 @@ wire [31: 0] i_req_vaddr_fet2mmu;
 wire         i_rtrn_vld_mmu2fet;
 wire [31: 0] i_rtrn_data_mmu2fet;
 wire [31: 0] i_rtrn_vaddr_mmu2fet;
-wire [31: 0] i_rtrn_paddr_mmu2fet;
+// wire [31: 0] i_rtrn_paddr_mmu2fet;
 
 wire         i_exp_vld_mmu2fet;
 wire [ 3: 0] i_exp_cause_mmu2fet;
@@ -267,6 +267,9 @@ wire         exp_vld_dec2exe;
 wire [ 3: 0] exp_cause_dec2exe;
 wire [31: 0] exp_tval_dec2exe;
 
+wire          sfence_dec2exe;
+wire          sfence_type_dec2exe;
+
 // ----------------------
 // execute <-> memory_access
 // ----------------------
@@ -280,6 +283,11 @@ wire         instruction_pc_vld_exe2mem;
 wire         csr_we_exe2mem_wb;
 wire [31: 0] csr_we_addr_exe2mem_wb;
 wire [31: 0] csr_we_data_exe2mem_wb;
+
+
+wire          sfence_exe2mem;
+wire          sfence_type_exe2mem;
+wire [31: 0]  rs1_data_exe2mem;
 
 // ------------------------
 // memory_access <-> mem_wb
@@ -317,6 +325,22 @@ wire         tvm_csr2dec;
 wire [31: 0]  csr_data2dec;
 
 
+// ----------------------
+// controller <-> mmu
+// ----------------------
+wire          flush2mmu;
+wire          flush_type2mmu;
+wire [31: 0]  fulsh_vaddr2mmu;
+wire [31: 0]  fulsh_asid2mmu;
+
+// ----------------------
+// controller <-> memory
+// ----------------------
+wire          sfence_mem2cont;
+wire          sfence_type_mem2cont;
+wire [31: 0]  rs1_data_mem2cont;
+wire [31: 0]  rs2_data_mem2cont;
+
 // Exception
 // wire mem_memory_alignment_exception2mem_wb;
 // wire exe_mem_exception_vld2mem_wb, mem_wb_exception_vld2csr;
@@ -327,9 +351,9 @@ wire [31: 0]  csr_data2dec;
 // =============================================================================
 // Finite state machine that controls the processor pipeline stalls.
 //
-localparam i_NEXT = 0, i_WAIT = 1;
+localparam i_IDLE = 0, i_NEXT = 1, i_WAIT = 2;
 // localparam d_IDLE = 0, d_WAIT = 1;
- reg iS, iS_nxt, dS, dS_nxt;
+reg[ 1: 0] iS, iS_nxt, dS, dS_nxt;
 
 // -----------------------------------------------------------------------------
 // The stall signals:
@@ -338,13 +362,12 @@ localparam i_NEXT = 0, i_WAIT = 1;
 //
 wire stall_pipeline, stall_for_instr_fetch, stall_for_data_fetch;
 
-assign stall_for_instr_fetch = (iS_nxt == i_WAIT);
-// assign stall_for_data_fetch = (dS_nxt == d_WAIT);
+assign stall_for_instr_fetch = (iS_nxt == i_WAIT) || (iS == i_IDLE);
 
  always @(posedge clk_i)
  begin
      if (rst_i)
-         iS <= i_NEXT;
+         iS <= i_IDLE;
      else
          iS <= iS_nxt;
  end
@@ -352,64 +375,53 @@ assign stall_for_instr_fetch = (iS_nxt == i_WAIT);
  always @(*)
  begin
      case (iS)
-         i_NEXT: // CJ Tsai 0227_2020: I-fetch when I-memory ready.
-             if (i_rtrn_vld_mmu2fet || i_exp_vld_mmu2fet)
-                 iS_nxt = i_NEXT;
-             else
-                 iS_nxt = i_WAIT;
-         i_WAIT:
-             if (i_rtrn_vld_mmu2fet || i_exp_vld_mmu2fet)
-                 iS_nxt = i_NEXT; // one-cycle delay
-             else
-                 iS_nxt = i_WAIT;
+        i_IDLE:
+            iS_nxt = i_NEXT;
+        i_NEXT: // CJ Tsai 0227_2020: I-fetch when I-memory ready.
+            if (i_rtrn_vld_mmu2fet || i_exp_vld_mmu2fet || flush2mmu)
+                iS_nxt = i_NEXT;
+            else
+                iS_nxt = i_WAIT;
+        i_WAIT:
+            if (i_rtrn_vld_mmu2fet || i_exp_vld_mmu2fet)
+                iS_nxt = i_NEXT; // one-cycle delay
+            else
+                iS_nxt = i_WAIT;
+        default:
+            iS_nxt = i_IDLE;
      endcase
  end
+//  always @(posedge clk_i)
+//  begin
+//      if (rst_i)
+//          iS <= i_NEXT;
+//      else
+//          iS <= iS_nxt;
+//  end
 
-// always @(posedge clk_i)
-// begin
-//     if (rst_i)
-//         dS <= d_IDLE;
-//     else
-//         dS <= dS_nxt;
-// end
-
-// always @(*)
-// begin
-//     case (dS)
-//         d_IDLE:
-//             if ((exe_re || exe_we) && !memory_alignment_exception)
-//                 dS_nxt = d_WAIT;
-//             else
-//                 dS_nxt = d_IDLE;
-//         d_WAIT:
-//             if (d_rtrn_vld_mmu2mem || d_exp_vld_mmu2mem)
-//                 dS_nxt = d_IDLE;
-//             else
-//                 dS_nxt = d_WAIT;
-//     endcase
-// end
+//  always @(*)
+//  begin
+//      case (iS)
+//          i_NEXT: // CJ Tsai 0227_2020: I-fetch when I-memory ready.
+//              if (instruction_ready_i || i_exp_vld_mmu2fet)
+//                  iS_nxt = i_NEXT;
+//              else
+//                  iS_nxt = i_WAIT;
+//          i_WAIT:
+//              if (instruction_ready_i || i_exp_vld_mmu2fet)
+//                  iS_nxt = i_NEXT; // one-cycle delay
+//              else
+//                  iS_nxt = i_WAIT;
+//      endcase
+//  end
 
 // -----------------------------------------------------------------------------
 // Output instruction/data request signals to mmu
-// assign instruction_req_o = !(iS == i_WAIT && i_rtrn_vld_mmu2fet);
-// assign data_req_o = (dS_nxt == d_WAIT);
-// assign data_strobe_o = (dS == d_IDLE) && (exe_re | exe_we);
 
-//  Signals from the Memory Access Stage
-// assign instruction_addr_o = pc;
-// assign data_write_o = data_o;
-// assign data_addr_o = exe_addr2mem;
-// assign data_rw_o = exe_we;
-// assign data_byte_enable_o = byte_write_sel;
-
-assign i_req_vld_fet2mmu   = !(iS == i_WAIT && (i_rtrn_vld_mmu2fet || i_exp_vld_mmu2fet));
+assign i_req_vld_fet2mmu   = (iS == i_NEXT)||(iS == i_WAIT && (!i_rtrn_vld_mmu2fet && !i_exp_vld_mmu2fet));
 assign i_req_vaddr_fet2mmu = pc;
-
-// assign d_req_vld_mem2mmu          = (dS_nxt == d_WAIT);      
-// assign d_req_vaddr_mem2mmu        = exe_addr2mem;      
-// assign d_req_data_mem2mmu         = data_o;
-// assign d_req_rw_mem2mmu           = exe_we;
-// assign d_req_byte_enable_mem2mmu  = byte_write_sel;
+// assign instruction_req_o   = !(iS == i_WAIT && (i_exp_vld_mmu2fet));
+// assign instruction_addr_o = pc;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                        the following are submodules                        //
@@ -449,7 +461,19 @@ pipeline_control Pipeline_Control(
 
 
     // to Program_Counter, Fetch stage
-    .stall_from_hazard_o(stall_from_hazard)
+    .stall_from_hazard_o(stall_from_hazard),
+
+    //from memory
+    .sfence_i(sfence_mem2cont),
+    .sfence_type_i(sfence_type_mem2cont),  
+    .rs1_data_i(rs1_data_mem2cont),  
+    .rs2_data_i(rs2_data_mem2cont),
+
+    //to mmu
+    .tlb_fulsh_o(flush2mmu),
+    .tlb_flush_type_o(flush_type2mmu),
+    .tlb_fulsh_vaddr_o(fulsh_vaddr2mmu),
+    .tlb_fulsh_asid_o(fulsh_asid2mmu)
 );
 
 // =============================================================================
@@ -605,7 +629,10 @@ program_counter Program_Counter(
     .branch_restore_addr_i(exe_pc2pc),
 
     // to Fetch stage, i-cache
-    .pc_o(pc)
+    .pc_o(pc),
+
+    .sfence_i(flush2mmu),
+    .dec_pc2exe_i(dec_pc2exe)
 );
 
 // =============================================================================
@@ -630,7 +657,7 @@ fetch Fetch(
 
     // from Program_Counter
     .pc_i(i_rtrn_vaddr_mmu2fet),
-    .ppc_i(i_rtrn_paddr_mmu2fet),
+    // .ppc_i(i_rtrn_paddr_mmu2fet),
 
     // to the Decode Stage
     .instruction_o(fet_instr2dec),
@@ -641,6 +668,7 @@ fetch Fetch(
     .uncond_branch_hit_ID_o(uncond_branch_hit_ID),
     .pc_o(fet_pc2dec),
     .instr_valid_o(fet_valid2dec),
+    .pc_vld_o(pc_vld_fet2dec),
 
     //exception from mmu
     .exp_from_mmu_vld_i(i_exp_vld_mmu2fet),
@@ -652,6 +680,50 @@ fetch Fetch(
     .exp_cause_o(exp_cause_fet2dec),
     .exp_tval_o(exp_tval_fet2dec)
 );
+
+// fetch Fetch(
+//     // Top-level system signals
+//     .clk_i(clk_i),
+//     .rst_i(rst_i),
+//     .stall_i((stall_for_instr_fetch | stall_for_data_fetch | stall_from_exe) || stall_from_hazard),
+
+//     // from Pipeline_Control and CSR_File
+//     .flush_i(flush2fet || irq_taken),
+
+//     // from Cond_Branch_Predictor
+//     .cond_branch_hit_IF_i(cond_branch_hit_IF),
+//     .cond_branch_result_IF_i(cond_branch_result_IF),
+
+//     // from Uncond_Branch_BHT
+//     .uncond_branch_hit_IF_i(uncond_branch_hit_IF),
+
+//     // from i-memory
+//     .instruction_i(instruction_i),
+
+//     // from Program_Counter
+//     .pc_i(pc),
+//     .ppc_i(pc),
+
+//     // to the Decode Stage
+//     .instruction_o(fet_instr2dec),
+
+//     // to the Execute Stage
+//     .cond_branch_hit_ID_o(cond_branch_hit_ID),
+//     .cond_branch_result_ID_o(cond_branch_result_ID),
+//     .uncond_branch_hit_ID_o(uncond_branch_hit_ID),
+//     .pc_o(fet_pc2dec),
+//     .instr_valid_o(fet_valid2dec),
+
+//     //exception from mmu
+//     .exp_from_mmu_vld_i(i_exp_vld_mmu2fet),
+//     .exp_from_mmu_cause_i(i_exp_cause_mmu2fet),
+//     .exp_from_mmu_tval_i(i_exp_tval_mmu2fet),
+
+//     //To Decode
+//     .exp_vld_o(exp_vld_fet2dec),
+//     .exp_cause_o(exp_cause_fet2dec),
+//     .exp_tval_o(exp_tval_fet2dec)
+// );
 
 // =============================================================================
 decode Decode(
@@ -665,6 +737,7 @@ decode Decode(
 
     // Signals from the Fetch Stage.
     .pc_i(fet_pc2dec),
+    .pc_vld_i(pc_vld_fet2dec),
     .instruction_i(fet_instr2dec),
     .instr_valid_i(fet_valid2dec),
     .cond_branch_hit_ID_i(cond_branch_hit_ID),
@@ -695,7 +768,7 @@ decode Decode(
     .is_jalr_o(is_jalr2exe),
     .is_csr_instr_o(csr_we_dec2exe),
     .csr_imm_o(dec_csr_imm2csr),
-    .instr_valid_o(instruction_pc_vld_dec2exe),
+    .instr_pc_valid_o(instruction_pc_vld_dec2exe),
 
     // to Execute, Cond_Branch_Predictor
     .is_branch_o(is_branch2exe),
@@ -739,6 +812,10 @@ decode Decode(
     // System Jump operation
     .sys_jump_o(sys_jump_dec2exe),
     .sys_jump_csr_addr_o(sys_jump_csr_addr_dec2exe),
+
+    //Supervisor Instructions
+    .sfence_o(sfence_dec2exe),
+    .sfence_type_o(sfence_type_dec2exe),//0=>rs1=x0,1=>rs1!=x0
 
     //Exception from Fetch
     .exp_vld_i(exp_vld_fet2dec),
@@ -837,6 +914,13 @@ execute Execute(
     .sys_jump_csr_addr_i(sys_jump_csr_addr_dec2exe),
     .sys_jump_o(sys_jump_exe2mem),
     .sys_jump_csr_addr_o(sys_jump_csr_addr_exe2mem),
+
+    //Supervisor Instructions
+    .sfence_i(sfence_dec2exe),
+    .sfence_o(sfence_exe2mem),
+    .sfence_type_i(sfence_type_dec2exe),
+    .sfence_type_o(sfence_type_exe2mem),//0=>rs1=x0,1=>rs1!=x0
+    .rs1_data_o(rs1_data_exe2mem),
 
     //Exception from Decode
     .exp_vld_i(exp_vld_dec2exe),
@@ -950,6 +1034,18 @@ memory_access Memory_Access(
     .csr_we_data_i(csr_we_data_exe2mem_wb),
 
     //
+    .sfence_i(sfence_exe2mem),
+    .sfence_type_i(sfence_type_exe2mem),  
+    .rs1_data_i(rs1_data_exe2mem),  
+    .rs2_data_i(exe_rs2_data2mem),
+
+    //
+    .sfence_o(sfence_mem2cont),
+    .sfence_type_o(sfence_type_mem2cont),  
+    .rs1_data_o(rs1_data_mem2cont),  
+    .rs2_data_o(rs2_data_mem2cont),
+
+    //
     .regfile_input_sel_o(regfile_input_sel_mem2wb),
     .regfile_we_o(regfile_we_mem2wb),
     .rd_addr_o(rd_addr_mem2wb),
@@ -977,6 +1073,106 @@ memory_access Memory_Access(
     .mstatus_ie_i(mstatus_ie_csr2mem), //{MIE, WPRI, SIE, UIE}
     .mie_i(mie_csr2mem)
 );
+
+// memory_access Memory_Access(
+//     .clk_i(clk_i),
+//     .rst_i(rst_i),
+
+//     .stall_i(stall_for_instr_fetch | stall_for_data_fetch | stall_from_exe),
+//     .flush_i(flush2mem_wb || irq_taken),
+//     .stall_for_data_fetch_o(stall_for_data_fetch),
+
+//     // from Execute_Memory_Pipeline
+//     .unaligned_data_i(exe_rs2_data2mem),      // store value
+//     .mem_addr_i(exe_addr2mem),
+//     .mem_input_sel_i(exe_input_sel2mem),
+//     .exe_we_i(exe_we),
+//     .exe_re_i(exe_re),
+
+//     // to D-memory
+//     .data_o(data_write_o),                        // data_write
+//     .byte_write_sel_o(data_byte_enable_o),
+//     .req_vld_o(data_req_o),    
+//     .req_vaddr_o(data_addr_o),       
+//     .req_rw_o(data_rw_o), 
+
+
+//     .d_rtrn_vld_i(data_ready_i),
+//     .d_rtrn_data_i(data_read_i),
+
+//     // System Jump operation
+//     .sys_jump_i(sys_jump_exe2mem),
+//     .sys_jump_csr_addr_i(sys_jump_csr_addr_exe2mem),
+//     .sys_jump_o(sys_jump_mem2mem_wb),
+//     .sys_jump_csr_addr_o(sys_jump_csr_addr_mem2mem_wb),
+
+//     // Exception signal
+//     //.memory_alignment_exception_o(memory_alignment_exception),
+
+//     // .req_done_o(req_done_mem2wb),       
+//     // .buffer_exp_vld_o(buffer_exp_vld_mem2wb),
+//     // .buffer_exp_cause_o(buffer_exp_cause_mem2wb),
+//     // .buffer_exp_tval_o(buffer_exp_tval_mem2wb), 
+//     // .buffer_data_o(buffer_data_mem2wb),    
+
+//     //exception from execute
+//     .exp_vld_i(exp_vld_exe2mem),
+//     .exp_cause_i(exp_cause_exe2mem),
+//     .exp_tval_i(exp_tval_exe2mem),
+//     .instruction_pc_i(instruction_pc_exe2mem),
+//     .instruction_pc_vld_i(instruction_pc_vld_exe2mem),
+
+//     //exception from mmu
+//     .exp_from_mmu_vld_i(d_exp_vld_mmu2mem),
+//     .exp_from_mmu_cause_i(d_exp_cause_mmu2mem),
+//     .exp_from_mmu_tval_i(d_exp_tval_mmu2mem),
+
+//     //exception to writeback
+//     .exp_vld_o(exp_vld_mem2mem_wb),
+//     .exp_isinterrupt_o(exp_isinterrupt_mem2wb),
+//     .exp_cause_o(exp_cause_mem2mem_wb),
+//     .exp_tval_o(exp_tval_mem2mem_wb),
+//     .instruction_pc_o(instruction_pc_mem2mem_wb),
+//     .instruction_pc_vld_o(instruction_pc_vld_mem2wb),
+
+//     .regfile_we_i(exe_regfile_we2mem_wb),
+//     .rd_addr_i(exe_rd_addr2mem_wb),
+//     .regfile_input_sel_i(exe_regfile_input_sel2mem_wb),
+//     .mem_load_ext_sel_i(exe_load_ext_sel2mem_wb),
+//     .mem_addr_alignment_i(exe_addr2mem[1: 0]),
+//     .p_data_i(exe_p_data),
+//     .csr_we_i(csr_we_exe2mem_wb),
+//     .csr_we_addr_i(csr_we_addr_exe2mem_wb),
+//     .csr_we_data_i(csr_we_data_exe2mem_wb),
+
+//     //
+//     .regfile_input_sel_o(regfile_input_sel_mem2wb),
+//     .regfile_we_o(regfile_we_mem2wb),
+//     .rd_addr_o(rd_addr_mem2wb),
+//     .mem_load_ext_sel_o(mem_load_ext_sel_mem2wb),
+//     .mem_addr_alignment_o(mem_addr_alignment_mem2wb),
+//     .p_data_o(p_data_mem2wb),
+//     .csr_we_o(csr_we_mem2wb),
+//     .csr_we_addr_o(csr_we_addr_mem2wb),
+//     .csr_we_data_o(csr_we_data_mem2wb),
+//     .mem_data_o(mem_data_mem2wb),
+//     .mip_update_o(mip_update_mem2wb),
+
+//     // Interrupt requests.
+//     .m_ext_irq_i(ext_irq_i), //Machine external interrupt
+//     .m_tmr_irq_i(tmr_irq_i), //Machine timer interrupt
+//     .m_sft_irq_i(sft_irq_i), //Machine software interrupt
+//     .s_ext_irq_i(), //Supervisor external interrupt
+//     .s_tmr_irq_i(), //Supervisor timer interrupt
+//     .s_sft_irq_i(), //Supervisor software interrupt
+//     .u_ext_irq_i(), //User external interrupt
+//     .u_tmr_irq_i(), //User timer interrupt
+//     .u_sft_irq_i(), //User software interrupt
+
+//     //From CSR
+//     .mstatus_ie_i(mstatus_ie_csr2mem), //{MIE, WPRI, SIE, UIE}
+//     .mie_i(mie_csr2mem)
+// );
 
 // =============================================================================
 writeback Writeback(
@@ -1045,6 +1241,7 @@ always@(*) begin
         nxt_unwb_PC = fet_pc2dec;
     else
         nxt_unwb_PC = i_rtrn_vaddr_mmu2fet;
+        // nxt_unwb_PC = pc;
 end
 
 
@@ -1053,6 +1250,9 @@ CSR(
     // Top-level system signals
     .clk_i(clk_i),
     .rst_i(rst_i),
+
+    //
+    .stall_i(stall_for_instr_fetch | stall_for_data_fetch | stall_from_exe),
 
     // from Decode
     .csr_rd_addr_i(dec_csr_addr2csr),
@@ -1098,7 +1298,7 @@ CSR(
     .exp_tval_i(exp_tval_mem_wb2csr),
 
     //To Memory
-    .mstatus_ie_o(mstatus_ie_csr2mem), //{MIE, WPRI,SIE ,UIE}
+    .mstatus_ie_o(mstatus_ie_csr2mem), //{MIE, WPRI, SIE ,UIE}
     .mie_o(mie_csr2mem),
 
     //
@@ -1113,7 +1313,11 @@ mmu #(
 ) MMU (
     .clk_i(clk_i),
     .rst_i(rst_i),
-    .flush_i('b0),
+ 
+    .flush_i(flush2mmu),
+    .flush_type_i(flush_type2mmu),
+    .fulsh_vaddr_i(fulsh_vaddr2mmu),
+    .fulsh_asid_i(fulsh_asid2mmu),
 
     //From CSR
     .enable_i(mmu_enable_csr2mmu),
@@ -1153,7 +1357,7 @@ mmu #(
     //From icache to processor
     .i_rtrn_vld_o(i_rtrn_vld_mmu2fet),
     .i_rtrn_vaddr_o(i_rtrn_vaddr_mmu2fet),
-    .i_rtrn_paddr_o(i_rtrn_paddr_mmu2fet),
+    // .i_rtrn_paddr_o(i_rtrn_paddr_mmu2fet),
     .i_rtrn_data_o(i_rtrn_data_mmu2fet),
 
     //From dcache

@@ -40,7 +40,7 @@ clean:
 	$(CC) $(CCFLAGS) -c $< -o $@
 
 _$(PROJ).o: #$(ASMS) $(OBJS)
-	riscv64-unknown-elf-gcc -march=rv32imf -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -DENTROPY=0xf7930f7 -std=gnu99 -O2 -I/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v -I/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/macros/scalar -T/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v/link.ld /home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v/entry.S /home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v/*.c rv32ui/simple.S -o $@
+	riscv64-unknown-elf-gcc -march=rv32imf -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -DENTROPY=0xf7930f7 -std=gnu99 -O1 -I/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v -I/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/macros/scalar -T/home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v/link.ld /home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v/entry.S /home/twccyoyo/riscv/aquila_20200410_verilate/aquila/verilate/v-simple-test/v/*.c rv32ui/simple.S -o $@
 	riscv64-unknown-elf-objdump --disassemble-all --disassemble-zeroes --section=.text --section=.text.startup --section=.text.init --section=.data _$(PROJ).o > $(PROJ).dump
 	#$(LD) $(LDFLAGS) $(OBJS) $(LD_SOFT_FP) -o $@
 

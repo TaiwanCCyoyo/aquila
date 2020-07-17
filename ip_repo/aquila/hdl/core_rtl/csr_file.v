@@ -62,6 +62,9 @@ module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
     input  wire                    clk_i,
     input  wire                    rst_i,
 
+    //stall
+    input wire                     stall_i,
+
     // from Decode
     input  wire [11: 0]            csr_rd_addr_i,
 
@@ -94,7 +97,7 @@ module csr_file #(parameter HART_ID = 0, ADDR_WIDTH = 32, DATA_WIDTH = 32)
         
     //MMU     
     output wire                    mmu_enable_o,
-    output wire                    ld_st_privilege_lvl_o,
+    output wire [ 1: 0]            ld_st_privilege_lvl_o,
     output wire [21: 0]            root_ppn_o,
     output wire [ 8: 0]            asid_o,
     output wire                    mxr_o,
@@ -329,6 +332,11 @@ reg  [31: 0] PC_handler;
 // -----------------------------------------------------------------------------------------------------
 // | 31 |30    20| 19  | 18  |  17  |16  15|14  13|12   9|  8  |7    6|  5   |  4   |3    2|  1  |  0  |
 // -----------------------------------------------------------------------------------------------------
+reg stall_delay;
+always@(posedge clk_i)
+begin
+    stall_delay <= stall_i;
+end
 
 always @(posedge clk_i)
 begin
@@ -336,15 +344,21 @@ begin
     begin
         mstatus_r <= {19'b0, `M_MODE, 7'b0, 1'b1, 3'b0};//MPP <= 2'b11(M-mode)
     end
+    else if(stall_delay)
+    begin
+        mstatus_r <= mstatus_r;
+    end
     else if (irq_taken)
+    begin
         if(trap_to_M)
         begin
             mstatus_r <= {mstatus_r[31:13], privilege_lvl_r, mstatus_r[10:8], mstatus_r[3], mstatus_r[6:4], 1'b0, mstatus_r[2:0]};// MPIE <= MIE, MIE <= 0
         end
         else
         begin
-            mstatus_r <= {mstatus_r[31:9], privilege_lvl_r, mstatus_r[7:6], mstatus_r[1], mstatus_r[4:2], 1'b0, mstatus_r[0]};// SPIE <= SIE, SIE <= 0
+            mstatus_r <= {mstatus_r[31:9], privilege_lvl_r[0], mstatus_r[7:6], mstatus_r[1], mstatus_r[4:2], 1'b0, mstatus_r[0]};// SPIE <= SIE, SIE <= 0
         end
+    end
     else if (sys_jump_i)
     begin
         if(is_mret)

@@ -17,6 +17,7 @@
 void trap_entry();
 void pop_tf(trapframe_t*);
 
+volatile uint32_t *my_tohost = 0xC1000000;
 volatile uint64_t tohost;
 volatile uint64_t fromhost;
 
@@ -25,6 +26,7 @@ static void do_tohost(uint64_t tohost_value)
   while (tohost)
     fromhost = 0;
   tohost = tohost_value;
+ *my_tohost = tohost_value;
 }
 
 #define pa2kva(pa) ((void*)(pa) - DRAM_BASE - MEGAPAGE_SIZE)
@@ -64,7 +66,6 @@ void wtf()
 #define stringify(x) stringify1(x)
 #define assert(x , y) do { \
   if (x) break; \
-  cputstring("Assertion failed: " stringify(x) "\n"); \
   terminate(y); \
 } while(0)
 
@@ -138,7 +139,7 @@ static void evict(unsigned long addr)
 
 void handle_fault(uintptr_t addr, uintptr_t cause)
 {
-  assert(addr >= PGSIZE && addr < MAX_TEST_PAGES * PGSIZE, 3);
+  assert(addr >= PGSIZE && addr < MAX_TEST_PAGES * PGSIZE, 100);
   addr = addr/PGSIZE*PGSIZE;
 
   if (user_llpt[addr/PGSIZE]) {
@@ -181,8 +182,8 @@ void handle_trap(trapframe_t* tf)
   {
     int n = tf->gpr[10];
 
-    /*for (long i = 1; i < MAX_TEST_PAGES; i++)
-      evict(i*PGSIZE);*/
+    for (long i = 1; i < 2; i++)
+      evict(i*PGSIZE);
 
     terminate(n);
   }
@@ -293,10 +294,13 @@ void vm_boot(uintptr_t test_addr)
   }
   freelist_nodes[MAX_TEST_PAGES-1].next = 0;
 
+  //for uart
+  l1pt[((((unsigned int)my_tohost)>>PTE_PPN_SHIFT)>>RISCV_PGSHIFT)] = (((((unsigned int)my_tohost))/RISCV_PGSIZE)<< PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+
   trapframe_t tf;
   memset(&tf, 0, sizeof(tf));
   tf.epc = test_addr - DRAM_BASE;
-  int user_l2pt_entry = ((unsigned int)test_addr) << 10 >> 22;
-  user_l2pt[user_l2pt_entry] = ((((unsigned int)test_addr)/RISCV_PGSIZE) << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+  // int user_l2pt_entry = ((unsigned int)test_addr) << 10 >> 22;
+  // user_llpt[user_l2pt_entry] = ((((unsigned int)test_addr)/RISCV_PGSIZE) << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U;
   pop_tf(&tf);
 }

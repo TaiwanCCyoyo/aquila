@@ -58,16 +58,16 @@
 must start from 0x80000000 due to aquila hard code /
 */
 
-__heap_start = 0x00400000;
-__heap_size  = 0x00100000;
-__stack_top  = 0x00A00000;
-__stack_size = 0x00100000;
+__heap_start = 0x0000E000;
+__heap_size  = 0x00000400;
+__stack_top  = 0x0000F000;
+__stack_size = 0x00000400;
 __stack_start = __stack_top - __stack_size;
 
 MEMORY
 {
-    code_ram   (rx!rw) : ORIGIN = 0x00000000, LENGTH = 0x00100000
-    data_ram   (rw!x)  : ORIGIN = 0x00020000, LENGTH = 0x00100000
+    code_ram   (rx!rw) : ORIGIN = 0x00000000, LENGTH = 0x000008000
+    data_ram   (rw!x)  : ORIGIN = 0x0000A000, LENGTH = 0x000004000
     heap_ram   (rw!x)  : ORIGIN = __heap_start, LENGTH = __heap_size
     stack_ram  (rw!x)  : ORIGIN = __stack_start, LENGTH = __stack_size
 }

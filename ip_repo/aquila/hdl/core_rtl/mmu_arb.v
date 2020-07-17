@@ -160,14 +160,73 @@ module mmu_arb #(
         end 
     end
 
+    reg [31: 0] req_paddr;
+    always@(posedge clk_i) begin
+        if(rst_i) begin
+            req_paddr <= 0;
+        end else if(grant[0]) begin
+            req_paddr <= d_req_paddr_i;
+        end else if(grant[1]) begin
+            req_paddr <= ptw_req_paddr_i;
+        end
+    end 
+
+    reg [31: 0] req_data;
+    always@(posedge clk_i) begin
+        if(rst_i) begin
+            req_data <= 0;
+        end else if(grant[0]) begin
+            req_data <= d_req_data_i;
+        end else if(grant[1]) begin
+            req_data <= ptw_req_data_i;
+        end
+    end 
+
+    reg req_rw;
+    always@(posedge clk_i) begin
+        if(rst_i) begin
+            req_rw <= 0;
+        end else if(grant[0]) begin
+            req_rw <= d_req_rw_i;
+        end else if(grant[1]) begin
+            req_rw <= ptw_req_rw_i;
+        end
+    end 
+
+    reg [3:0] req_byte_enable;
+    always@(posedge clk_i) begin
+        if(rst_i) begin
+            req_byte_enable <= 0;
+        end else if(grant[0]) begin
+            req_byte_enable <= d_req_byte_enable_i;
+        end else if(grant[1]) begin
+            req_byte_enable <= ptw_req_byte_enable_i;
+        end
+    end 
+
+    reg [1:0] req_vld;
+    always@(posedge clk_i) begin
+        if(rst_i) begin
+            req_vld <= 2'b00;
+        end else if(d_rtrn_vld_i) begin
+            req_vld <= 2'b00;
+        end else if(grant[0]) begin
+            req_vld <= 2'b01;
+        end else if(grant[1]) begin
+            req_vld <= 2'b10;
+        end else begin
+            req_vld <= 2'b00;
+        end
+    end
+
     //=======================================================
     // Output signals interface                       
     //=======================================================
-    assign d_req_vld_o         =  grant[0]                              |  grant[1];     
-    assign d_req_paddr_o       = ({32{grant[0]}} & d_req_paddr_i      ) | ({32{grant[1]}} & ptw_req_paddr_i);  
-    assign d_req_data_o        = ({32{grant[0]}} & d_req_data_i       ) | ({32{grant[1]}} & ptw_req_data_i);
-    assign d_req_rw_o          = (      grant[0] & d_req_rw_i         ) | (      grant[1] & ptw_req_rw_i);       
-    assign d_req_byte_enable_o = ({ 4{grant[0]}} & d_req_byte_enable_i) | ({ 4{grant[1]}} & ptw_req_byte_enable_i);
+    assign d_req_vld_o         = (grant[0] & ~req_vld[0])         |  (grant[1] & ~ req_vld[1]);     
+    assign d_req_paddr_o       = (grant[0])?d_req_paddr_i         :((grant[1])?ptw_req_paddr_i:req_paddr);  
+    assign d_req_data_o        = (grant[0])?d_req_data_i          :((grant[1])?ptw_req_data_i:req_data);
+    assign d_req_rw_o          = (grant[0])?d_req_rw_i            :((grant[1])?ptw_req_rw_i:req_rw);       
+    assign d_req_byte_enable_o = (grant[0])?d_req_byte_enable_i   :((grant[1])?ptw_req_byte_enable_i:req_byte_enable);
 
     assign d_rtrn_vld_o        = pointer_update_reg[1]       & d_rtrn_vld_i;
     assign d_rtrn_data_o       = {32{pointer_update_reg[1]}} & d_rtrn_data_i;
