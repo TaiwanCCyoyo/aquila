@@ -78,7 +78,7 @@ SECTIONS
 {
     .text :
     {
-        boot.o(.text)
+        boot-v.o(.text)
         *(.text)
 
     } > code_ram

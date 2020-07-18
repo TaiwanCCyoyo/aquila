@@ -9,6 +9,43 @@
 #define PAGE_NUM 256
 pte_t pt[PAGE_NUM+1][PTES_PER_PT];
 
+void pop_tf(trapframe_t* tf_ptr){
+  asm volatile("lw  t0,33*4(a0)");
+  asm volatile("csrw  sepc,t0");
+  asm volatile("lw  x1,1*4(a0)");
+  asm volatile("lw  x2,2*4(a0)");
+  asm volatile("lw  x3,3*4(a0)");
+  asm volatile("lw  x4,4*4(a0)");
+  asm volatile("lw  x5,5*4(a0)");
+  asm volatile("lw  x6,6*4(a0)");
+  asm volatile("lw  x7,7*4(a0)");
+  asm volatile("lw  x8,8*4(a0)");
+  asm volatile("lw  x9,9*4(a0)");
+  asm volatile("lw  x11,11*4(a0)");
+  asm volatile("lw  x12,12*4(a0)");
+  asm volatile("lw  x13,13*4(a0)");
+  asm volatile("lw  x14,14*4(a0)");
+  asm volatile("lw  x15,15*4(a0)");
+  asm volatile("lw  x16,16*4(a0)");
+  asm volatile("lw  x17,17*4(a0)");
+  asm volatile("lw  x18,18*4(a0)");
+  asm volatile("lw  x19,19*4(a0)");
+  asm volatile("lw  x20,20*4(a0)");
+  asm volatile("lw  x21,21*4(a0)");
+  asm volatile("lw  x22,22*4(a0)");
+  asm volatile("lw  x23,23*4(a0)");
+  asm volatile("lw  x24,24*4(a0)");
+  asm volatile("lw  x25,25*4(a0)");
+  asm volatile("lw  x26,26*4(a0)");
+  asm volatile("lw  x27,27*4(a0)");
+  asm volatile("lw  x28,28*4(a0)");
+  asm volatile("lw  x29,29*4(a0)");
+  asm volatile("lw  x30,30*4(a0)");
+  asm volatile("lw  x31,31*4(a0)");
+  asm volatile("lw  a0,10*4(a0)");
+  asm volatile("sret");
+}
+
 void vm_boot(uintptr_t test_addr)
 {
   // map user to lowermost megapage
@@ -58,3 +95,4 @@ void vm_boot(uintptr_t test_addr)
   tf.epc = test_addr - DRAM_BASE;
   pop_tf(&tf);
 }
+

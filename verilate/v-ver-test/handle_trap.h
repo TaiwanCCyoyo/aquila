@@ -2,6 +2,8 @@
 #define HANDLE_TRAP_H_
 volatile int got_timmer_isr;
 
+void volatile install_isr(unsigned int isr);
+
 //------------------------------
 // ISR
 void volatile isr();
@@ -38,4 +40,8 @@ void volatile isr_is_InstructionPageFault();
 void volatile isr_is_LoadPageFault();
 void volatile isr_is_StoreAmoPageFault();
 void volatile isr_is_UnknownException();
+
+//----------------------------------
+// My return
+void my_mret();
 #endif

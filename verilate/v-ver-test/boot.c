@@ -7,6 +7,8 @@
 //  beginning of the text section in the linker script.
 // ======================================================================
 #include <stdio.h>
+#include "handle_trap.h"
+#include "vm.h"
 
 #define SET_STACK_POINTER 1 // Set SP based on the linker script.
 
@@ -32,10 +34,12 @@ void boot(void)
     asm volatile("lw  sp, %lo(stack_top)(t0)");
 #endif
 
+    install_isr((unsigned int)isr);
+
 #ifndef VIRTUAL_MEMORY_ENABLE
-	main();
+    main();
 #else
-	vmboot(&main);
+    vm_boot((unsigned int)main);
 #endif
 
 #if SET_STACK_POINTER

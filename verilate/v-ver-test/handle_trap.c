@@ -2,12 +2,20 @@
 #include "vm.h"
 #include <stdio.h>
 #include "uart.h"
+
+void volatile install_isr(unsigned int isr)
+{
+    // the parameter is stored in the a0 register.
+    asm volatile ("csrw mtvec, a0");
+	printf("Installed ISR");
+}
+
 //------------------------------
 // ISR
 void volatile isr()
 {
-    //printf("\nInterrupted or an exception occurred\n");
-    //printf("Check what kind of Trap \n\n");
+    printf("\nInterrupted or an exception occurred\n");
+    printf("Check what kind of Trap \n\n");
     asm volatile ("csrrs t0, mcause, zero");
     asm volatile ("srli t0, t0, 31");
     asm volatile ("beq	t0, zero, isr_is_exception");
@@ -15,7 +23,7 @@ void volatile isr()
 }
 
 void volatile isr_is_interrupt(){
-    //printf("Interrupted\n");
+    printf("Interrupted\n");
     asm volatile ("csrrs t0, mcause, zero");
     asm volatile ("slli t0, t0, 1");
     asm volatile ("srli t0, t0, 1");
@@ -98,7 +106,8 @@ void volatile isr_is_MachineTimerInterrupt(){
     asm volatile ("addi t0, zero, 128");
     asm volatile ("csrc mie, t0");
     got_timmer_isr = 1;
-    asm volatile ("mret");
+    my_mret();
+    //asm volatile ("mret");
 }
 void volatile isr_is_UserExternalInterrupt(){
     printf("User external interrupt\n");
@@ -111,6 +120,16 @@ void volatile isr_is_MachineExternalInterrupt(){
 }
 void volatile isr_is_UnknownInterrupt(){
     printf("Unknown interrupt\n");
+}
+
+void my_mret(){
+    asm volatile ("lw	ra,12(sp)");
+    asm volatile ("addi	sp,sp,16");
+    asm volatile ("lw	ra,12(sp)");
+    asm volatile ("addi	sp,sp,16");
+    asm volatile ("lw	ra,12(sp)");
+    asm volatile ("addi	sp,sp,16");
+    asm volatile ("mret");
 }
 
 //------------------------------

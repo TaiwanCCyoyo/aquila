@@ -1,7 +1,6 @@
 #ifndef VM_H_
 #define VM_H_
 
-#define VIRTUAL_MEMORY_ENABLE 1
 # define RISCV_PGLEVEL_BITS 10
 #define RISCV_PGSHIFT 12
 #define PTE_PPN_SHIFT 10
@@ -24,6 +23,7 @@ typedef struct
   long cause;
 } trapframe_t;
 
+void pop_tf(trapframe_t* tf_ptr);
 void vm_boot(uintptr_t test_addr);
 
 

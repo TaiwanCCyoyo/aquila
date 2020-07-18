@@ -72,16 +72,6 @@ void sleep(int msec);
 // volatile int got_timmer_isr;
 volatile int malloc_succeed;
 
-void volatile install_isr(unsigned int isr)
-{
-    // the parameter is stored in the a0 register.
-    // asm volatile ("addi t0, a0, 0x0");
-    // asm volatile ("addi	t0,t0,0x1");
-	// asm volatile ("csrw mtvec, t0");
-    asm volatile ("csrw mtvec, a0");
-	printf("Installed ISR at 0x%x\n", isr);
-}
-
 void volatile set_timer_period(unsigned long msec)
 {
     unsigned long volatile *clint_mem = (unsigned long *) 0xF0000000;
@@ -133,29 +123,10 @@ int main(void)
     }
     printf("ISR Test finished.\n");
 
-    //test_vm();
 
     printf("Test finished.\n");
     return 0;
 }
-/*
-void test_vm()
-{
-    printf("Enable Trap Virtual Memory(TVM) bit\n");
-
-    asm volatile ("addi t0, zero, 1");
-    asm volatile ("slli t0, t0, 20");
-    asm volatile ("csrrs mstatus, t0");
-
-    printf("Change Mode!!\n");
-    asm volatile ("sret");
-
-    if(malloc_succeed){
-        printf("Enable Trap Virtual Memory(TVM) bit\n");
-    } else {
-        printf("Paging error bacause of malloc Error\n");
-    }
-}*/
 
 void malloc_test(int nwords)
 {
@@ -205,16 +176,6 @@ void timer_isr_test()
 
     // Set the ISR address.
     got_timmer_isr = 0;
-    // install_isr((unsigned int) isr);
-    // printf("install_isr done\n");
-
-    // Input the timer interrupt duration.
-    // do
-    // {
-    //     printf("Input the interrupt duration (in msec): ");
-    //     fgets(str, sizeof(str), stdin);
-    //     n = atoi(str);
-    // } while (n == 0);
 
     // Set the interrupt duration.
     set_timer_period(n);
