@@ -77,12 +77,12 @@ core_verilate:
 .PHONY: build_riscv_tests
 .ONESHELL:
 build_riscv_tests:
-	mkdir tmp
+	#mkdir tmp
 	cd tmp
-	git clone https://github.com/riscv/riscv-tests
+	#git clone https://github.com/riscv/riscv-tests
 	cd riscv-tests
-	rmdir env
-	git clone https://github.com/Daichou/riscv-test-env env
+	#rmdir env
+	#git clone https://github.com/Daichou/riscv-test-env env
 	autoconf
 	./configure --prefix=$(CUR_DIR)/tmp/target
 	make clean

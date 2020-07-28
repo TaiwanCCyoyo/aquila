@@ -241,7 +241,7 @@ assign p_d_strobe = ((~d_req_pre && p_d_req) || (p_d_req && p_d_ready));
 // ----------------------------------------------------------------------------
 //  Instiantiation of the dual-port tightly-coupled scratchpad memory module.
 //  0x00000000 ~ 0x0FFFFFFF
-localparam TCM_SIZE_IN_WORDS = 65536; // 64KB
+localparam TCM_SIZE_IN_WORDS = 16384; // 64KB
 localparam TCM_ADDR_WIDTH = $clog2(TCM_SIZE_IN_WORDS);
 
 sram_dp #(.DATA_WIDTH(DATA_WIDTH), .N_ENTRIES(TCM_SIZE_IN_WORDS))
@@ -274,7 +274,7 @@ clint #( .TIMER(1_00_000) )
 CLINT(
     .clk_i(clk_i),
     .rst_i(rst_i),
-    .en_i(mem_sel == 3),
+    .en_i(p_d_req && mem_sel == 3),
     .we_i(data_rw && (mem_sel == 3)),
     .addr_i({6'b0, p_d_addr[ADDR_WIDTH - 5 : 2]}),
     .data_i(p_d_din),
@@ -288,8 +288,8 @@ CLINT(
 // ----------------------------------------------------------------------------
 //  Instiantiation of the I/D-cache modules.
 //
-localparam ICACHE_SIZE = 4; // Cache size in KB.
-localparam DCACHE_SIZE = 4; // Cache size in KB.
+localparam ICACHE_SIZE = 1; // Cache size in KB.
+localparam DCACHE_SIZE = 1; // Cache size in KB.
 
 // Instruction read from I-cache port.
 icache #(.ADDR_WIDTH(ADDR_WIDTH), .CACHE_SIZE(ICACHE_SIZE))

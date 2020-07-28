@@ -68,6 +68,8 @@ module tlb # (
     // Enable
     input wire          enable_i,
 
+    input wire [ 8: 0]  asid_i,
+
     // Update TLB
     input wire          update_vld_i,
     input wire [19: 0]  update_tag_i,
@@ -75,7 +77,6 @@ module tlb # (
     input wire          update_content_is_4MB_i,
 
     // Translate addres
-    input  wire [ 8: 0] asid_i,
     input  wire [31: 0] vaddr_i,
     
     output wire         hit_o,
@@ -117,6 +118,7 @@ wire         content_V        [0 : TLB_ENTRIES - 1];
  
 reg          content_is_4MB_r [0 : TLB_ENTRIES - 1];
 reg          content_valid_r  [0 : TLB_ENTRIES - 1];
+reg [ 8: 0]  content_asid_r   [0 : TLB_ENTRIES - 1];
 
 
 
@@ -187,10 +189,31 @@ always@(posedge clk_i) begin
         end
     end else if(flush_i) begin
         for(i = 0; i < TLB_ENTRIES; i = i +1) begin
-            content_valid_r[i]    <= content_G[i];
+            if(flush_type_i) begin
+                if((content_is_4MB_r[i] && fulsh_vaddr_i[31:22] == {tag_vpn_1_r[i]}) || (fulsh_vaddr_i[31:12] == {tag_vpn_1_r[i],tag_vpn_0_r[i]})) begin
+                    if(!fulsh_asid_i) begin
+                        content_valid_r[i]    <= (content_asid_r[i] == fulsh_asid_i[8:0])?content_G[i]:content_valid_r[i];
+                    end else begin
+                        content_valid_r[i]    <= 0;
+                    end
+                end
+            end else begin
+                if(!fulsh_asid_i) begin
+                    content_valid_r[i]    <= (content_asid_r[i] == fulsh_asid_i[8:0])?content_G[i]:content_valid_r[i];
+                end else begin
+                    content_valid_r[i]    <= 0;
+                end
+            end
         end
     end else if(update_vld_i) begin
         content_valid_r[FIFO_cnt_r] <= 'b1;
+    end
+end
+
+//content
+always@(posedge clk_i) begin
+    if(update_vld_i) begin
+        content_asid_r[FIFO_cnt_r] <= asid_i;
     end
 end
 

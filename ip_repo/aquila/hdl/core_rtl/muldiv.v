@@ -66,6 +66,7 @@ module muldiv#(parameter DATA_WIDTH = 32)
 (
     input                         clk_i,
     input                         rst_i,
+    input                         stall_i,
     input  [DATA_WIDTH-1 : 0]     a_i,
     input  [DATA_WIDTH-1 : 0]     b_i,
     input                         req_i,
@@ -162,7 +163,10 @@ begin
         S_SIGN_ADJUST:
             S_nxt = S_DONE;
         S_DONE:
-            S_nxt = S_IDLE;
+            if(stall_i)
+                S_nxt = S_DONE;
+            else
+                S_nxt = S_IDLE;
         default:
             S_nxt = S_IDLE;
     endcase

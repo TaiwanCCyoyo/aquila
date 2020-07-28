@@ -65,7 +65,6 @@ module sram
 );
 
 reg [DATA_WIDTH-1 : 0] RAM [N_ENTRIES-1: 0];
-wire [DATA_WIDTH-1 : 0] temp = RAM[31];
 // ------------------------------------
 // Read operation
 // ------------------------------------

@@ -18,7 +18,7 @@
 //#undef TRACE
 #define FENCE_ENABLE
 #undef FENCE_ENABLE
-#define MAX_SIM_CYCLE 1000000
+#define MAX_SIM_CYCLE 2000000
 
 using namespace std;
 static vluint64_t cpuTime = 0;

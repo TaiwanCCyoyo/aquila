@@ -58,22 +58,21 @@
 must start from 0x80000000 due to aquila hard code /
 */
 
-__heap_start = 0x80118000;
+__heap_start = 0x80220000;
 __heap_size  = 0x00001000;
-__stack_top  = 0x8011C000;
+__stack_top  = 0x80230000;
 __stack_size = 0x00001000;
 __stack_start = __stack_top - __stack_size;
 
 MEMORY
 {
     code_ram   (rx!rw) : ORIGIN = 0x80000000, LENGTH = 0x00008000
-    data_ram   (rw!x)  : ORIGIN = 0x8000A000, LENGTH = 0x00108000
+    data_ram   (rw!x)  : ORIGIN = 0x8000A000, LENGTH = 0x00210000
     heap_ram   (rw!x)  : ORIGIN = __heap_start, LENGTH = __heap_size
     stack_ram  (rw!x)  : ORIGIN = __stack_start, LENGTH = __stack_size
     IO       (rw!x)  : ORIGIN = 0xC0000000, LENGTH = 0x00000010
     TIMER    (rw!x)  : ORIGIN = 0xF0000000, LENGTH = 0x00000020
 }
-
 SECTIONS
 {
     .text :

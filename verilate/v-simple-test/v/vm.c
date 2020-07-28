@@ -300,7 +300,8 @@ void vm_boot(uintptr_t test_addr)
   trapframe_t tf;
   memset(&tf, 0, sizeof(tf));
   tf.epc = test_addr - DRAM_BASE;
-  // int user_l2pt_entry = ((unsigned int)test_addr) << 10 >> 22;
-  // user_llpt[user_l2pt_entry] = ((((unsigned int)test_addr)/RISCV_PGSIZE) << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U;
+  test_addr = test_addr - DRAM_BASE;
+  int user_l2pt_entry = ((unsigned int)test_addr) << 10 >> 22;
+  user_llpt[user_l2pt_entry] = ((((unsigned int)test_addr)/RISCV_PGSIZE) << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U;
   pop_tf(&tf);
 }

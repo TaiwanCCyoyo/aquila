@@ -1,0 +1,449 @@
+Archive member included to satisfy reference by file (symbol)
+
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+                              ../../sw/elibc/time.o (__divdi3)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+                              ../../sw/elibc/stdio.o (__adddf3)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+                              ../../sw/elibc/stdio.o (__ltdf2)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+                              ../../sw/elibc/stdio.o (__muldf3)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+                              ../../sw/elibc/stdio.o (__subdf3)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+                              ../../sw/elibc/stdio.o (__fixdfsi)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+                              ../../sw/elibc/stdio.o (__floatsidf)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+                              test.o (__extendsfdf2)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+                              /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o) (__clz_tab)
+/home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+                              /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o) (__clzsi2)
+
+Allocating common symbols
+Common symbol       size              file
+
+pt                  0x9000            vm.o
+malloc_succeed      0x4               test.o
+got_timmer_isr      0x4               boot-v.o
+sp_store            0x4               boot-v.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+code_ram         0x0000000080000000 0x0000000000008000 xr !rw
+data_ram         0x000000008000a000 0x000000000001a000 rw !x
+heap_ram         0x0000000080030000 0x0000000000001000 rw !x
+stack_ram        0x000000008003f000 0x0000000000001000 rw !x
+IO               0x00000000c0000000 0x0000000000000010 rw !x
+TIMER            0x00000000f0000000 0x0000000000000020 rw !x
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+                0x0000000080030000                __heap_start = 0x80030000
+                0x0000000000001000                __heap_size = 0x1000
+                0x0000000080040000                __stack_top = 0x80040000
+                0x0000000000001000                __stack_size = 0x1000
+                0x000000008003f000                __stack_start = (__stack_top - __stack_size)
+
+.text           0x0000000080000000     0x4018
+ boot-v.o(.text)
+ .text          0x0000000080000000       0x50 boot-v.o
+                0x0000000080000000                boot
+ *(.text)
+ .text          0x0000000080000050      0x264 vm.o
+                0x0000000080000050                pop_tf
+                0x00000000800000ec                vm_boot
+ .text          0x00000000800002b4      0x588 handle_trap.o
+                0x00000000800002b4                install_isr
+                0x00000000800002cc                isr
+                0x000000008000030c                isr_is_interrupt
+                0x0000000080000388                isr_is_exception
+                0x0000000080000424                isr_is_UserSoftwareInterrupt
+                0x0000000080000448                isr_is_SupervisorSoftwareInterrupt
+                0x000000008000046c                isr_is_MachineSoftwareInterrupt
+                0x0000000080000490                isr_is_UserTimerInterrupt
+                0x00000000800004b4                isr_is_SupervisorTimerInterrupt
+                0x00000000800004d8                isr_is_MachineTimerInterrupt
+                0x0000000080000514                isr_is_UserExternalInterrupt
+                0x0000000080000538                isr_is_SupaervisorExternalInterrupt
+                0x000000008000055c                isr_is_MachineExternalInterrupt
+                0x0000000080000580                isr_is_UnknownInterrupt
+                0x00000000800005a4                my_mret
+                0x00000000800005e0                isr_is_InstructionAddressMisaligned
+                0x0000000080000604                isr_is_InstructionAccessFault
+                0x0000000080000628                isr_is_IllegalInstruction
+                0x000000008000064c                isr_is_Breakpoint
+                0x0000000080000670                isr_is_LoadAddressMisaligned
+                0x0000000080000694                isr_is_LoadAccessFault
+                0x00000000800006b8                isr_is_StoreAmoAddressMisaligned
+                0x00000000800006dc                isr_is_StoreAmoAccessFault
+                0x0000000080000700                isr_is_EnvironmentCallFromUmode
+                0x0000000080000744                isr_is_EnvironmentCallFromSmode
+                0x0000000080000788                isr_is_EnvironmentCallFromMmode
+                0x00000000800007ac                isr_is_InstructionPageFault
+                0x00000000800007d0                isr_is_LoadPageFault
+                0x00000000800007f4                isr_is_StoreAmoPageFault
+                0x0000000080000818                isr_is_UnknownException
+ .text          0x000000008000083c      0x42c test.o
+                0x000000008000083c                set_timer_period
+                0x000000008000088c                enable_core_timer
+                0x000000008000089c                main
+                0x00000000800009f0                malloc_test
+                0x0000000080000c0c                timer_isr_test
+ .text          0x0000000080000c68      0x848 ../../sw/elibc/stdio.o
+                0x0000000080000c68                getchar
+                0x0000000080000c88                fgets
+                0x0000000080000d58                putchar
+                0x0000000080000d88                fputs
+                0x0000000080000e04                putd
+                0x0000000080000ef0                putx
+                0x0000000080001014                putf
+                0x0000000080001210                printf
+ .text          0x00000000800014b0      0x2c0 ../../sw/elibc/stdlib.o
+                0x00000000800014b0                malloc
+                0x00000000800014d8                free
+                0x00000000800014fc                calloc
+                0x0000000080001554                atoi
+                0x000000008000168c                abs
+                0x00000000800016c4                exit
+                0x0000000080001708                srand
+                0x0000000080001728                rand
+ .text          0x0000000080001770      0x530 ../../sw/elibc/heap_4.o
+                0x0000000080001770                empty
+                0x0000000080001778                pvPortMalloc
+                0x0000000080001950                vPortFree
+                0x0000000080001a04                xPortGetFreeHeapSize
+                0x0000000080001a14                xPortGetMinimumEverFreeHeapSize
+                0x0000000080001a24                vPortInitialiseBlocks
+ .text          0x0000000080001ca0      0x54c ../../sw/elibc/string.o
+                0x0000000080001ca0                memcpy
+                0x0000000080001d10                memmove
+                0x0000000080001de8                memset
+                0x0000000080001e48                strlen
+                0x0000000080001e88                strcpy
+                0x0000000080001ee4                strncpy
+                0x0000000080001f74                strcat
+                0x0000000080001fec                strncat
+                0x000000008000207c                strcmp
+                0x0000000080002128                strncmp
+ .text          0x00000000800021ec       0x94 ../../sw/elibc/time.o
+                0x00000000800021ec                clock
+ .text          0x0000000080002280       0xa0 ../../sw/elibc/uart.o
+                0x0000000080002280                inbyte
+                0x00000000800022ac                outbyte
+ .text          0x0000000080002320      0x480 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+                0x0000000080002320                __divdi3
+ .text          0x00000000800027a0      0x7bc /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+                0x00000000800027a0                __adddf3
+ .text          0x0000000080002f5c       0xe4 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+                0x0000000080002f5c                __ltdf2
+                0x0000000080002f5c                __ledf2
+ .text          0x0000000080003040      0x5c4 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+                0x0000000080003040                __muldf3
+ .text          0x0000000080003604      0x7c8 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+                0x0000000080003604                __subdf3
+ .text          0x0000000080003dcc       0x80 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+                0x0000000080003dcc                __fixdfsi
+ .text          0x0000000080003e4c       0xa8 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+                0x0000000080003e4c                __floatsidf
+ .text          0x0000000080003ef4       0xd8 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+                0x0000000080003ef4                __extendsfdf2
+ .text          0x0000000080003fcc        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .text          0x0000000080003fcc       0x4c /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+                0x0000000080003fcc                __clzsi2
+
+.srodata        0x0000000080004018        0x4
+ .srodata       0x0000000080004018        0x4 ../../sw/elibc/heap_4.o
+
+.eh_frame       0x000000008000401c       0x28
+ .eh_frame      0x000000008000401c       0x28 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+
+.rela.dyn       0x0000000080004044        0x0
+ .rela.text     0x0000000080004044        0x0 boot-v.o
+ .rela.sdata    0x0000000080004044        0x0 boot-v.o
+
+.data           0x000000008000a000      0x858
+ *(.data)
+ .data          0x000000008000a000        0x0 boot-v.o
+ .data          0x000000008000a000        0x0 vm.o
+ .data          0x000000008000a000        0x0 handle_trap.o
+ .data          0x000000008000a000        0x0 test.o
+ .data          0x000000008000a000        0x0 ../../sw/elibc/stdio.o
+ .data          0x000000008000a000        0x0 ../../sw/elibc/stdlib.o
+ .data          0x000000008000a000        0x0 ../../sw/elibc/heap_4.o
+ .data          0x000000008000a000        0x0 ../../sw/elibc/string.o
+ .data          0x000000008000a000        0x0 ../../sw/elibc/time.o
+ .data          0x000000008000a000        0x0 ../../sw/elibc/uart.o
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .data          0x000000008000a000        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+ *(.bss)
+ .bss           0x000000008000a000        0x0 boot-v.o
+ .bss           0x000000008000a000        0x0 vm.o
+ .bss           0x000000008000a000        0x0 handle_trap.o
+ .bss           0x000000008000a000        0x0 test.o
+ .bss           0x000000008000a000        0x8 ../../sw/elibc/stdio.o
+ .bss           0x000000008000a008        0x0 ../../sw/elibc/stdlib.o
+ .bss           0x000000008000a008       0x1c ../../sw/elibc/heap_4.o
+ .bss           0x000000008000a024        0x0 ../../sw/elibc/string.o
+ .bss           0x000000008000a024        0x0 ../../sw/elibc/time.o
+ .bss           0x000000008000a024        0x0 ../../sw/elibc/uart.o
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .bss           0x000000008000a024        0x0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+ *(.rodata*)
+ .rodata        0x000000008000a024       0x1a vm.o
+ *fill*         0x000000008000a03e        0x2 
+ .rodata        0x000000008000a040      0x303 handle_trap.o
+ *fill*         0x000000008000a343        0x1 
+ .rodata        0x000000008000a344      0x1fc test.o
+ .rodata        0x000000008000a540      0x110 ../../sw/elibc/stdio.o
+ .rodata        0x000000008000a650       0xcc ../../sw/elibc/stdlib.o
+ .rodata        0x000000008000a71c       0x3c /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .rodata        0x000000008000a758      0x100 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+                0x000000008000a758                __clz_tab
+
+.sdata          0x000000008000a858       0x2c
+ .sdata         0x000000008000a858        0x4 boot-v.o
+                0x000000008000a858                stack_top
+ .sdata         0x000000008000a85c        0x8 test.o
+                0x000000008000a85c                heap_start
+                0x000000008000a860                heap_size
+ .sdata         0x000000008000a864       0x1c ../../sw/elibc/stdio.o
+                0x000000008000a874                stdin
+                0x000000008000a878                stdout
+                0x000000008000a87c                stderr
+ .sdata         0x000000008000a880        0x4 ../../sw/elibc/stdlib.o
+
+.heap           0x0000000080030000     0x1000
+                0x0000000080030000                . = ALIGN (0x4)
+                [!provide]                        PROVIDE (end = .)
+                0x0000000080030000                _sheap = .
+                0x0000000080031000                . = (. + __heap_size)
+ *fill*         0x0000000080030000     0x1000 
+                0x0000000080031000                . = ALIGN (0x4)
+                0x0000000080031000                _eheap = .
+
+.stack          0x000000008003f000     0x1000
+                0x000000008003f000                . = ALIGN (0x4)
+                0x000000008003f000                _estack = .
+                0x0000000080040000                . = (. + __stack_size)
+ *fill*         0x000000008003f000     0x1000 
+                0x0000000080040000                . = ALIGN (0x4)
+                0x0000000080040000                _sstack = .
+LOAD vm.o
+LOAD handle_trap.o
+LOAD test.o
+LOAD ../../sw/elibc/stdio.o
+LOAD ../../sw/elibc/stdlib.o
+LOAD ../../sw/elibc/heap_4.o
+LOAD ../../sw/elibc/string.o
+LOAD ../../sw/elibc/time.o
+LOAD ../../sw/elibc/uart.o
+LOAD boot-v.o
+LOAD /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a
+OUTPUT(test-v elf32-littleriscv)
+
+.comment        0x0000000000000000       0x11
+ .comment       0x0000000000000000       0x11 boot-v.o
+                                         0x12 (size before relaxing)
+ .comment       0x0000000000000011       0x12 vm.o
+ .comment       0x0000000000000011       0x12 handle_trap.o
+ .comment       0x0000000000000011       0x12 test.o
+ .comment       0x0000000000000011       0x12 ../../sw/elibc/stdio.o
+ .comment       0x0000000000000011       0x12 ../../sw/elibc/stdlib.o
+ .comment       0x0000000000000011       0x12 ../../sw/elibc/heap_4.o
+ .comment       0x0000000000000011       0x12 ../../sw/elibc/string.o
+ .comment       0x0000000000000011       0x12 ../../sw/elibc/time.o
+ .comment       0x0000000000000011       0x12 ../../sw/elibc/uart.o
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .comment       0x0000000000000011       0x12 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.riscv.attributes
+                0x0000000000000000       0x21
+ .riscv.attributes
+                0x0000000000000000       0x21 boot-v.o
+ .riscv.attributes
+                0x0000000000000021       0x21 vm.o
+ .riscv.attributes
+                0x0000000000000042       0x21 handle_trap.o
+ .riscv.attributes
+                0x0000000000000063       0x21 test.o
+ .riscv.attributes
+                0x0000000000000084       0x21 ../../sw/elibc/stdio.o
+ .riscv.attributes
+                0x00000000000000a5       0x21 ../../sw/elibc/stdlib.o
+ .riscv.attributes
+                0x00000000000000c6       0x21 ../../sw/elibc/heap_4.o
+ .riscv.attributes
+                0x00000000000000e7       0x21 ../../sw/elibc/string.o
+ .riscv.attributes
+                0x0000000000000108       0x21 ../../sw/elibc/time.o
+ .riscv.attributes
+                0x0000000000000129       0x21 ../../sw/elibc/uart.o
+ .riscv.attributes
+                0x000000000000014a       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .riscv.attributes
+                0x000000000000016b       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .riscv.attributes
+                0x000000000000018c       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .riscv.attributes
+                0x00000000000001ad       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .riscv.attributes
+                0x00000000000001ce       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .riscv.attributes
+                0x00000000000001ef       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .riscv.attributes
+                0x0000000000000210       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .riscv.attributes
+                0x0000000000000231       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .riscv.attributes
+                0x0000000000000252       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .riscv.attributes
+                0x0000000000000273       0x21 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.bss            0x000000008000b000     0xa004
+ COMMON         0x000000008000b000        0x8 boot-v.o
+                0x000000008000b000                got_timmer_isr
+                0x000000008000b004                sp_store
+ *fill*         0x000000008000b008      0xff8 
+ COMMON         0x000000008000c000     0x9000 vm.o
+                0x000000008000c000                pt
+ COMMON         0x0000000080015000        0x4 test.o
+                0x0000000080015000                malloc_succeed
+
+.debug_info     0x0000000000000000     0x4652
+ .debug_info    0x0000000000000000     0x127b /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .debug_info    0x000000000000127b      0x599 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .debug_info    0x0000000000001814      0x286 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .debug_info    0x0000000000001a9a      0x75c /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .debug_info    0x00000000000021f6      0x599 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .debug_info    0x000000000000278f      0x21a /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .debug_info    0x00000000000029a9      0x2bc /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .debug_info    0x0000000000002c65      0x2ac /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .debug_info    0x0000000000002f11      0xb6a /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .debug_info    0x0000000000003a7b      0xbd7 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.debug_abbrev   0x0000000000000000     0x11de
+ .debug_abbrev  0x0000000000000000      0x2e4 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .debug_abbrev  0x00000000000002e4      0x196 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .debug_abbrev  0x000000000000047a      0x199 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .debug_abbrev  0x0000000000000613      0x18e /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .debug_abbrev  0x00000000000007a1      0x196 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .debug_abbrev  0x0000000000000937      0x18a /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .debug_abbrev  0x0000000000000ac1      0x178 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .debug_abbrev  0x0000000000000c39      0x17b /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .debug_abbrev  0x0000000000000db4      0x1e8 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .debug_abbrev  0x0000000000000f9c      0x242 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.debug_loc      0x0000000000000000     0x4189
+ .debug_loc     0x0000000000000000      0xa0c /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .debug_loc     0x0000000000000a0c     0x119d /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .debug_loc     0x0000000000001ba9      0x135 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .debug_loc     0x0000000000001cde      0xd9a /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .debug_loc     0x0000000000002a78     0x1208 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .debug_loc     0x0000000000003c80      0x181 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .debug_loc     0x0000000000003e01      0x159 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .debug_loc     0x0000000000003f5a      0x1c4 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .debug_loc     0x000000000000411e       0x6b /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.debug_aranges  0x0000000000000000      0x138
+ .debug_aranges
+                0x0000000000000000       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .debug_aranges
+                0x0000000000000020       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .debug_aranges
+                0x0000000000000040       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .debug_aranges
+                0x0000000000000060       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .debug_aranges
+                0x0000000000000080       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .debug_aranges
+                0x00000000000000a0       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .debug_aranges
+                0x00000000000000c0       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .debug_aranges
+                0x00000000000000e0       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .debug_aranges
+                0x0000000000000100       0x18 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .debug_aranges
+                0x0000000000000118       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.debug_ranges   0x0000000000000000      0x898
+ .debug_ranges  0x0000000000000000       0xf8 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .debug_ranges  0x00000000000000f8      0x228 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .debug_ranges  0x0000000000000320       0x50 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .debug_ranges  0x0000000000000370      0x230 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .debug_ranges  0x00000000000005a0      0x220 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .debug_ranges  0x00000000000007c0       0x18 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .debug_ranges  0x00000000000007d8       0x68 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .debug_ranges  0x0000000000000840       0x38 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .debug_ranges  0x0000000000000878       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.debug_line     0x0000000000000000     0x4916
+ .debug_line    0x0000000000000000      0x9d1 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+ .debug_line    0x00000000000009d1     0x1043 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .debug_line    0x0000000000001a14      0x321 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .debug_line    0x0000000000001d35      0xdd4 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .debug_line    0x0000000000002b09     0x10a2 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .debug_line    0x0000000000003bab      0x243 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .debug_line    0x0000000000003dee      0x27d /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .debug_line    0x000000000000406b      0x3d7 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .debug_line    0x0000000000004442      0x224 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .debug_line    0x0000000000004666      0x2b0 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+
+.debug_str      0x0000000000000000      0xe07
+ .debug_str     0x0000000000000000      0x7e5 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_divdi3.o)
+                                        0x865 (size before relaxing)
+ .debug_str     0x00000000000007e5      0x230 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+                                        0x32c (size before relaxing)
+ .debug_str     0x0000000000000a15       0x77 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+                                        0x26a (size before relaxing)
+ .debug_str     0x0000000000000a8c      0x20e /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+                                        0x446 (size before relaxing)
+ .debug_str     0x0000000000000c9a       0x36 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+                                        0x32c (size before relaxing)
+ .debug_str     0x0000000000000cd0       0x4b /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+                                        0x243 (size before relaxing)
+ .debug_str     0x0000000000000d1b       0x69 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+                                        0x2d9 (size before relaxing)
+ .debug_str     0x0000000000000d84       0x7a /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+                                        0x267 (size before relaxing)
+ .debug_str     0x0000000000000dfe      0x7ad /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clz.o)
+ .debug_str     0x0000000000000dfe        0x9 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)
+                                        0x7ca (size before relaxing)
+
+.debug_frame    0x0000000000000000      0x1ac
+ .debug_frame   0x0000000000000000       0x44 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(adddf3.o)
+ .debug_frame   0x0000000000000044       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(ledf2.o)
+ .debug_frame   0x0000000000000064       0x54 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(muldf3.o)
+ .debug_frame   0x00000000000000b8       0x44 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(subdf3.o)
+ .debug_frame   0x00000000000000fc       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(fixdfsi.o)
+ .debug_frame   0x000000000000011c       0x38 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(floatsidf.o)
+ .debug_frame   0x0000000000000154       0x38 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(extendsfdf2.o)
+ .debug_frame   0x000000000000018c       0x20 /home/twccyoyo/riscv/riscv-gnu-toolchain/lib/gcc/riscv32-unknown-elf/8.2.0/libgcc.a(_clzsi2.o)

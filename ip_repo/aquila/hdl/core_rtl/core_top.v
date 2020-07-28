@@ -1307,8 +1307,8 @@ CSR(
 
 // =============================================================================
 mmu #(
-    .INSTR_TLB_ENTRIES(4),
-    .DATA_TLB_ENTRIES(4),
+    .INSTR_TLB_ENTRIES(16),
+    .DATA_TLB_ENTRIES(16),
     .ASID_WIDTH(1)
 ) MMU (
     .clk_i(clk_i),

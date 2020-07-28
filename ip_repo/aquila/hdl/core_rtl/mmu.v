@@ -56,7 +56,7 @@
 module mmu #(
     parameter INSTR_TLB_ENTRIES     = 4,
     parameter DATA_TLB_ENTRIES      = 4,
-    parameter ASID_WIDTH            = 1
+    parameter ASID_WIDTH            = 9
 ) (
     input  wire         clk_i,
     input  wire         rst_i,
@@ -375,9 +375,14 @@ module mmu #(
         
         // Flush
         .flush_i(flush_i),
+        .flush_type_i(flush_type_i),
+        .fulsh_vaddr_i(fulsh_vaddr_i),
+        .fulsh_asid_i(fulsh_asid_i),
 
         //Enable
         .enable_i(enable_i),
+
+        .asid_i(asid_i),
         
         // Update TLB
         .update_vld_i(update_vld_ptw2itlb),
@@ -386,7 +391,6 @@ module mmu #(
         .update_content_is_4MB_i(update_content_is_4MB_ptw2itlb),
         
         // Translate addres
-        .asid_i(),
         .vaddr_i(i_req_vaddr_i),
         .hit_o(hit_itlb),
         .paddr_o(paddr_itlb),
@@ -401,9 +405,14 @@ module mmu #(
         
         // Flush
         .flush_i(flush_i),
+        .flush_type_i(flush_type_i),
+        .fulsh_vaddr_i(fulsh_vaddr_i),
+        .fulsh_asid_i(fulsh_asid_i),
         
         //Enable
         .enable_i(enable_i),
+
+        .asid_i(asid_i),
         
         // Update TLB
         .update_vld_i(update_vld_ptw2dtlb),
@@ -412,7 +421,6 @@ module mmu #(
         .update_content_is_4MB_i(update_content_is_4MB_ptw2dtlb),
         
         // Translate addres
-        .asid_i(),
         .vaddr_i(d_req_vaddr_i),
         .hit_o(hit_dtlb),
         .paddr_o(paddr_dtlb),

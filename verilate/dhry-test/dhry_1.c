@@ -115,7 +115,7 @@ main ()
   }
   printf ("\n");
 #else
-  Number_Of_Runs = 100;
+  Number_Of_Runs = 1;
 #endif
 
   printf ("Execution starts, %d runs through Dhrystone\n", Number_Of_Runs);

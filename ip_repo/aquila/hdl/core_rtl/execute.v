@@ -211,6 +211,7 @@ alu ALU(
 muldiv MulDiv(
     .clk_i(clk_i),
     .rst_i(rst_i),
+    .stall_i(stall_i),
     .a_i(inputA),
     .b_i(inputB),
     .req_i(muldiv_req),

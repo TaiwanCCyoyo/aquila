@@ -3,12 +3,12 @@
 #include "handle_trap.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define pa2kva(pa) ((void*)(pa) - DRAM_BASE - MEGAPAGE_SIZE)
 
-#define PAGE_NUM 256
-pte_t pt[PAGE_NUM+1][PTES_PER_PT];
-
+#define PAGE_NUM 512
+pte_t pt[PAGE_NUM+1][PTES_PER_PT] __attribute__((aligned(RISCV_PGSIZE)));
 void pop_tf(trapframe_t* tf_ptr){
   asm volatile("lw  t0,33*4(a0)");
   asm volatile("csrw  sepc,t0");
@@ -48,29 +48,29 @@ void pop_tf(trapframe_t* tf_ptr){
 
 void vm_boot(uintptr_t test_addr)
 {
-  // map user to lowermost megapage
-  //0x80000000 ~ 0xBFFFFFFF
-  //0x00000000 ~ 0x3FFFFFFF
-  //0x00000000 ~ 0x003FFFFF 4KB
-  //0x00400000 ~ 0x006FFFFF
-  //...
-  //0x3FC00000 ~ 0x3FFFFFFF
-  //共256頁
-  //=> user space
+  //user & kernal space
   for(int i = 0; i<PAGE_NUM; i++){
-    pt[0][i] = ((pte_t)pt[i+i] >> RISCV_PGSHIFT << PTE_PPN_SHIFT) | PTE_V;
+    pt[0][512+i] = ((pte_t)pt[i+1] >> RISCV_PGSHIFT << PTE_PPN_SHIFT) | PTE_V;
   }
-  
-  // map kernel to uppermost megapage
-  //0xFFF00000 ~ 0xFFFFFFFFF
-  //=> kernal space
-  //
-  pt[0][PTES_PER_PT-1] = (DRAM_BASE/RISCV_PGSIZE << PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
-
+  for(unsigned int i = 0; i < PAGE_NUM; i++) {
+    for(unsigned int j = 0; j < 1024; ++j) {
+      pt[i+1][j] = (unsigned int)((((unsigned int)(((unsigned int)DRAM_BASE)/RISCV_PGSIZE) + (i<<PTE_PPN_SHIFT) + j)) <<  PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U;
+    }
+  }
   //for uart
   //0xC0000000 ~ 0xC00FFFFF
   //0xC0000000 ~ 0xC00FFFFF
-  pt[0][((((unsigned int)UART_BASE)>>PTE_PPN_SHIFT)>>RISCV_PGSHIFT)] = (((((unsigned int)UART_BASE))/RISCV_PGSIZE)<< PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+  pt[0][((((unsigned int)UART_BASE)>>PTE_PPN_SHIFT)>>RISCV_PGSHIFT)] = (((((unsigned int)UART_BASE))/RISCV_PGSIZE)<< PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U;
+
+  //for client
+  pt[0][((((unsigned int)CLIENT_BASE)>>PTE_PPN_SHIFT)>>RISCV_PGSHIFT)] = (((((unsigned int)CLIENT_BASE))/RISCV_PGSIZE)<< PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U;
+
+  //for TCM
+  pt[0][((((unsigned int)TCM_BASE)>>PTE_PPN_SHIFT)>>RISCV_PGSHIFT)] = (((((unsigned int)TCM_BASE))/RISCV_PGSIZE)<< PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U;
+  
+
+  uintptr_t sptbr_value = (((uintptr_t)pt >> RISCV_PGSHIFT)| (0x80000000));
+  write_csr(sptbr, sptbr_value);
 
   // set up supervisor trap handling
   write_csr(stvec, pa2kva(isr));
@@ -81,18 +81,19 @@ void vm_boot(uintptr_t test_addr)
     (1 << CAUSE_LOAD_PAGE_FAULT) |
     (1 << CAUSE_STORE_PAGE_FAULT));
   // FPU on; accelerator on; allow supervisor access to user memory access
-  write_csr(mstatus, MSTATUS_SUM);
+  set_csr(mstatus, MSTATUS_SUM);
   write_csr(mie, 0);
-
-  for(int i = 0; i < PAGE_NUM; i++) {
-    for(int j = 0; j < 1024; ++j) {
-      pt[1+i][j] = ((((unsigned int)DRAM_BASE)/RISCV_PGSIZE + i) <<  PTE_PPN_SHIFT) | PTE_V | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
-    }
-  }
-
-  trapframe_t tf;
-  memset(&tf, 0, sizeof(tf));
-  tf.epc = test_addr - DRAM_BASE;
-  pop_tf(&tf);
+  write_csr(sepc, test_addr);
+  
+  printf("Virtual Memory boot done\n");
+  
+  asm volatile("lw	ra,60(sp)");
+  asm volatile("addi	sp,sp,64");
+  asm volatile("sret");
+  // trapframe_t tf;
+  // memset(&tf, 0, sizeof(tf));
+  // tf.gpr[sp]
+  // tf.epc = test_addr;
+  // pop_tf(&tf);
 }
 
